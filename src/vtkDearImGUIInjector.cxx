@@ -168,6 +168,59 @@ void vtkDearImGUIInjector::Inject(vtkRenderWindowInteractor* interactor)
   interactor->AddObserver(vtkCommand::ExitEvent, this, &vtkDearImGUIInjector::ShutDown);
 }
 
+bool vtkDearImGUIInjector::Init(vtkRenderWindow* renWin)
+{
+  if (renWin->GetNeverRendered())
+  {
+    vtkDebugMacro(<< "Init called, but render library is not setup. Hold on..");
+    return false; // too early
+  }
+  if (!this->Time)
+  {
+    using namespace std::chrono;
+    this->Time = duration_cast<milliseconds>(system_clock::now().time_since_epoch()).count();
+  }
+
+  ImGuiIO& io = ImGui::GetIO(); (void)io;
+  io.BackendFlags |= ImGuiBackendFlags_HasMouseCursors;         // We can honor GetMouseCursor() values (optional)
+  io.BackendFlags |= ImGuiBackendFlags_HasSetMousePos;          // We can honor io.WantSetMousePos requests (optional, rarely used)
+
+  // Keyboard mapping. Dear ImGui will use those indices to peek into the io.KeysDown[] array.
+  io.KeyMap[ImGuiKey_Tab] = keySymToCode["Tab"];
+  io.KeyMap[ImGuiKey_LeftArrow] = keySymToCode["LeftArrow"];
+  io.KeyMap[ImGuiKey_RightArrow] = keySymToCode["RightArrow"];
+  io.KeyMap[ImGuiKey_UpArrow] = keySymToCode["UpArrow"];
+  io.KeyMap[ImGuiKey_DownArrow] = keySymToCode["DownArrow"];
+  io.KeyMap[ImGuiKey_PageUp] = keySymToCode["PageUp"];
+  io.KeyMap[ImGuiKey_PageDown] = keySymToCode["PageDown"];
+  io.KeyMap[ImGuiKey_Home] = keySymToCode["Home"];
+  io.KeyMap[ImGuiKey_End] = keySymToCode["End"];
+  io.KeyMap[ImGuiKey_Insert] = keySymToCode["Insert"];
+  io.KeyMap[ImGuiKey_Delete] = keySymToCode["Delete"];
+  io.KeyMap[ImGuiKey_Backspace] = keySymToCode["Backspace"];
+  io.KeyMap[ImGuiKey_Space] = keySymToCode["Space"];
+  io.KeyMap[ImGuiKey_Enter] = keySymToCode["Enter"];
+  io.KeyMap[ImGuiKey_Escape] = keySymToCode["Escape"];
+  io.KeyMap[ImGuiKey_KeyPadEnter] = keySymToCode["KeyPadEnter"];
+  io.KeyMap[ImGuiKey_A] = keySymToCode["a"];
+  io.KeyMap[ImGuiKey_C] = keySymToCode["c"];
+  io.KeyMap[ImGuiKey_V] = keySymToCode["v"];
+  io.KeyMap[ImGuiKey_X] = keySymToCode["x"];
+  io.KeyMap[ImGuiKey_Y] = keySymToCode["y"];
+  io.KeyMap[ImGuiKey_Z] = keySymToCode["z"];
+
+  ImGui_ImplOpenGL3_Init();
+
+  // render everything each time in the event loop
+  this->RenderTimerId = renWin->GetInteractor()->CreateOneShotTimer(0);
+
+#if defined(_WIN32)
+  io.BackendPlatformName = renWin->GetClassName();
+  io.ImeWindowHandle = renWin->GetGenericWindowId();
+#endif
+  return true;
+}
+
 void vtkDearImGUIInjector::BeginDearImGUIOverlay(vtkObject* caller, unsigned long eid, void* calldata)
 {
   vtkDebugMacro(<< "BeginDearImGUIOverlay");
@@ -232,59 +285,6 @@ void vtkDearImGUIInjector::RenderDearImGUIOverlay(vtkObject* caller, unsigned lo
   }
 }
 
-bool vtkDearImGUIInjector::Init(vtkRenderWindow* renWin)
-{
-  if (renWin->GetNeverRendered())
-  {
-    vtkDebugMacro(<< "Init called, but render library is not setup. Hold on..");
-    return false; // too early
-  }
-  if (!this->Time)
-  {
-    using namespace std::chrono;
-    this->Time = duration_cast<milliseconds>(system_clock::now().time_since_epoch()).count();
-  }
-
-  ImGuiIO& io = ImGui::GetIO(); (void)io;
-  io.BackendFlags |= ImGuiBackendFlags_HasMouseCursors;         // We can honor GetMouseCursor() values (optional)
-  io.BackendFlags |= ImGuiBackendFlags_HasSetMousePos;          // We can honor io.WantSetMousePos requests (optional, rarely used)
-
-  // Keyboard mapping. Dear ImGui will use those indices to peek into the io.KeysDown[] array.
-  io.KeyMap[ImGuiKey_Tab] = keySymToCode["Tab"];
-  io.KeyMap[ImGuiKey_LeftArrow] = keySymToCode["LeftArrow"];
-  io.KeyMap[ImGuiKey_RightArrow] = keySymToCode["RightArrow"];
-  io.KeyMap[ImGuiKey_UpArrow] = keySymToCode["UpArrow"];
-  io.KeyMap[ImGuiKey_DownArrow] = keySymToCode["DownArrow"];
-  io.KeyMap[ImGuiKey_PageUp] = keySymToCode["PageUp"];
-  io.KeyMap[ImGuiKey_PageDown] = keySymToCode["PageDown"];
-  io.KeyMap[ImGuiKey_Home] = keySymToCode["Home"];
-  io.KeyMap[ImGuiKey_End] = keySymToCode["End"];
-  io.KeyMap[ImGuiKey_Insert] = keySymToCode["Insert"];
-  io.KeyMap[ImGuiKey_Delete] = keySymToCode["Delete"];
-  io.KeyMap[ImGuiKey_Backspace] = keySymToCode["Backspace"];
-  io.KeyMap[ImGuiKey_Space] = keySymToCode["Space"];
-  io.KeyMap[ImGuiKey_Enter] = keySymToCode["Enter"];
-  io.KeyMap[ImGuiKey_Escape] = keySymToCode["Escape"];
-  io.KeyMap[ImGuiKey_KeyPadEnter] = keySymToCode["KeyPadEnter"];
-  io.KeyMap[ImGuiKey_A] = keySymToCode["a"];
-  io.KeyMap[ImGuiKey_C] = keySymToCode["c"];
-  io.KeyMap[ImGuiKey_V] = keySymToCode["v"];
-  io.KeyMap[ImGuiKey_X] = keySymToCode["x"];
-  io.KeyMap[ImGuiKey_Y] = keySymToCode["y"];
-  io.KeyMap[ImGuiKey_Z] = keySymToCode["z"];
-
-  ImGui_ImplOpenGL3_Init();
-
-  // render everything each time in the event loop
-  this->RenderTimerId = renWin->GetInteractor()->CreateRepeatingTimer(0);
-
-#if defined(_WIN32)
-  io.BackendPlatformName = renWin->GetClassName();
-  io.ImeWindowHandle = renWin->GetGenericWindowId();
-#endif
-  return true;
-}
-
 void vtkDearImGUIInjector::ShutDown(vtkObject* caller, unsigned long eid, void* calldata)
 {
   ImGui_ImplOpenGL3_Shutdown();
@@ -301,7 +301,6 @@ void vtkDearImGUIInjector::UpdateMousePosAndButtons(vtkRenderWindowInteractor* i
   {
     io.MouseDown[i] = this->MouseJustPressed[i];
   }
-  io.WantCaptureKeyboard = io.WantCaptureMouse;
 
   // Update mouse position
   const ImVec2 mouse_pos_backup = io.MousePos;
@@ -359,50 +358,100 @@ void vtkDearImGUIInjector::Intercept(vtkObject* caller, unsigned long eid, void*
 
   std::string keySym = "";
   int keyCode = -1;
-
   switch (eid)
   {
   case vtkCommand::LeftButtonPressEvent:
+  {
     this->MouseJustPressed[ImGuiMouseButton_Left] = true;
-    if (!io.WantCaptureMouse) iStyle->OnLeftButtonDown();
+    if (!io.WantCaptureMouse)
+    {
+      iStyle->OnLeftButtonDown();
+    }
     break;
+  }
   case vtkCommand::RightButtonPressEvent:
+  {
     this->MouseJustPressed[ImGuiMouseButton_Right] = true;
-    if (!io.WantCaptureMouse) iStyle->OnRightButtonDown();
+    if (!io.WantCaptureMouse)
+    { 
+      iStyle->OnRightButtonDown(); 
+    }
     break;
+  }
   case vtkCommand::MiddleButtonPressEvent:
+  {
     this->MouseJustPressed[ImGuiMouseButton_Middle] = true;
-    if (!io.WantCaptureMouse) iStyle->OnMiddleButtonDown();
+    if (!io.WantCaptureMouse)
+    {
+      iStyle->OnMiddleButtonDown();
+    }
     break;
+  }
   case vtkCommand::LeftButtonReleaseEvent:
+  {
     this->MouseJustPressed[ImGuiMouseButton_Left] = false;
-    if (!io.WantCaptureMouse) iStyle->OnLeftButtonUp();
+    if (!io.WantCaptureMouse)
+    {
+      iStyle->OnLeftButtonUp();
+    }
     break;
+  }
   case vtkCommand::RightButtonReleaseEvent:
+  {
     this->MouseJustPressed[ImGuiMouseButton_Right] = false;
-    if (!io.WantCaptureMouse) iStyle->OnRightButtonUp();
+    if (!io.WantCaptureMouse)
+    {
+      iStyle->OnRightButtonUp();
+    }
     break;
+  }
   case vtkCommand::MiddleButtonReleaseEvent:
+  {
     this->MouseJustPressed[ImGuiMouseButton_Middle] = false;
-    if (!io.WantCaptureMouse) iStyle->OnMiddleButtonUp();
+    if (!io.WantCaptureMouse)
+    {
+      iStyle->OnMiddleButtonUp();
+    }
     break;
+  }
   case vtkCommand::MouseWheelBackwardEvent:
+  {
     io.MouseWheel = -1;
-    if (!io.WantCaptureMouse) iStyle->OnMouseWheelBackward();
+    if (!io.WantCaptureMouse)
+    {
+      iStyle->OnMouseWheelBackward();
+    }
     break;
+  }
   case vtkCommand::MouseWheelForwardEvent:
     io.MouseWheel = 1;
-    if (!io.WantCaptureMouse) iStyle->OnMouseWheelForward();
-    break;
+    {
+      if (!io.WantCaptureMouse)
+      {
+        iStyle->OnMouseWheelForward();
+      }
+      break;
+    }
   case vtkCommand::MouseWheelLeftEvent:
+  {
     io.MouseWheelH = 1;
-    if (!io.WantCaptureMouse) iStyle->OnMouseWheelLeft();
+    if (!io.WantCaptureMouse)
+    {
+      iStyle->OnMouseWheelLeft();
+    }
     break;
+  }
   case vtkCommand::MouseWheelRightEvent:
+  {
     io.MouseWheelH = -1;
-    if (!io.WantCaptureMouse) iStyle->OnMouseWheelRight();
+    if (!io.WantCaptureMouse)
+    {
+      iStyle->OnMouseWheelRight();
+    }
     break;
+  }
   case vtkCommand::KeyPressEvent:
+  {
     keySym = interactor->GetKeySym();
     if (keySymToCode.find(keySym) != keySymToCode.end())
     {
@@ -420,7 +469,9 @@ void vtkDearImGUIInjector::Intercept(vtkObject* caller, unsigned long eid, void*
       iStyle->OnKeyPress();
     }
     break;
+  }
   case vtkCommand::KeyReleaseEvent:
+  {
     keySym = interactor->GetKeySym();
     if (keySymToCode.find(keySym) != keySymToCode.end())
     {
@@ -437,23 +488,33 @@ void vtkDearImGUIInjector::Intercept(vtkObject* caller, unsigned long eid, void*
       iStyle->OnKeyRelease();
     }
     break;
+  }
   case vtkCommand::CharEvent:
-    keySym = interactor->GetKeySym();
-    if (keySymToCode.find(keySym) != keySymToCode.end())
+  {
+    if (!io.WantCaptureKeyboard)
     {
-      keyCode = keySymToCode[keySym];
+      iStyle->OnChar();
     }
-    io.AddInputCharacter(keySym.c_str()[0]);
-    if (!io.WantCaptureKeyboard) iStyle->OnChar();
     break;
+  }
   case vtkCommand::EnterEvent:
+  {
     this->Focused = true;
-    if (!io.WantCaptureMouse) iStyle->OnEnter();
+    if (!io.WantCaptureMouse)
+    {
+      iStyle->OnEnter();
+    }
     break;
+  }
   case vtkCommand::LeaveEvent:
+  {
     this->Focused = false;
-    if (!io.WantCaptureMouse) iStyle->OnLeave();
+    if (!io.WantCaptureMouse)
+    {
+      iStyle->OnLeave();
+    }
     break;
+  }
   default:
     break;
   }
@@ -461,15 +522,16 @@ void vtkDearImGUIInjector::Intercept(vtkObject* caller, unsigned long eid, void*
 
 void vtkDearImGUIInjector::Render(vtkObject* caller, unsigned long eid, void* calldata)
 {
-  vtkDebugMacro(<< "Render");
+  vtkDebugMacro(<< "Render Now");
   auto interactor = vtkRenderWindowInteractor::SafeDownCast(caller);
 
   switch (eid)
   {
   case vtkCommand::TimerEvent:
-    if (*reinterpret_cast<int*>(calldata) == this->RenderTimerId)
+    if (interactor->GetVTKTimerId(*reinterpret_cast<int*>(calldata)) == this->RenderTimerId)
     {
       interactor->Render();
+      interactor->ResetTimer(this->RenderTimerId);
     }
   default:
     break;

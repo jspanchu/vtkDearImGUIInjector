@@ -39,7 +39,6 @@ protected:
   int RenderTimerId = -1;
   unsigned long long Time = 0;
   bool MouseJustPressed[3] = { false, false, false };
-  bool ImGuiBlocked = false;
   bool Focused = false;
 
 private:
