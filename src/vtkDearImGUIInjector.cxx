@@ -4,7 +4,6 @@
 #include <string>
 #include <unordered_map>
 
-#include <vtkCallbackCommand.h>
 #include <vtkNew.h>
 #include <vtkObjectFactory.h>
 #include <vtkOpenGLRenderWindow.h>
@@ -21,7 +20,7 @@ vtkStandardNewMacro(vtkDearImGUIInjector);
 class InteractionEventsHelper
 {
   std::vector<unsigned long> Tags;
-  vtkSmartPointer<vtkInteractorStyle> Target;
+  vtkSmartPointer<vtkInteractorStyle> Target = nullptr;
 public:
   vtkInteractorStyle* GetTarget() { return Target; }
 
@@ -48,21 +47,17 @@ public:
 
   void Ignore()
   {
-    if (!this->Target)
+    if (this->Target != nullptr)
     {
-      return;
+      for (const auto& tag : Tags)
+      {
+        this->Target->RemoveObserver(tag);
+      }
+      this->Target = nullptr;
     }
-    for (const auto& tag : Tags)
-    {
-      this->Target->RemoveObserver(tag);
-    }
-    this->Target = nullptr;
   }
-};
 
-namespace
-{
-  vtkInteractorStyle* GetInteractorStyle(vtkRenderWindowInteractor* interactor)
+  static vtkInteractorStyle* GetInteractorStyle(vtkRenderWindowInteractor* interactor)
   {
     auto styleSwitch = vtkInteractorStyleSwitch::SafeDownCast(interactor->GetInteractorStyle());
     vtkInteractorStyle* iStyle = nullptr;
@@ -76,7 +71,10 @@ namespace
     }
     return iStyle;
   }
+};
 
+namespace
+{
   std::unordered_map<std::string, int> keySymToCode({
     {"Tab", 0},
     {"LeftArrow", 1},
@@ -89,7 +87,7 @@ namespace
     {"End", 8},
     {"Insert", 9},
     {"Delete", 10},
-    {"Backspace", 11},
+    {"BackSpace", 11},
     {"Space", 12},
     {"Enter", 13},
     {"Escape", 14},
@@ -124,19 +122,19 @@ namespace
 
 vtkDearImGUIInjector::vtkDearImGUIInjector()
 {
-  // Start ImGui
+  this->EventHelper = new InteractionEventsHelper();
+ 
+  // Start DearImGui
   IMGUI_CHECKVERSION();
   ImGui::CreateContext();
 
   // Setup Dear ImGui style
   ImGui::StyleColorsDark();
-
-  this->EventHelper = new InteractionEventsHelper();
 }
 
 vtkDearImGUIInjector::~vtkDearImGUIInjector()
 {
-  // Safely exit when VTK app exits
+  // Destroy DearImGUi
   if (ImGui::GetCurrentContext())
   {
     ImGui::DestroyContext();
@@ -155,20 +153,20 @@ void vtkDearImGUIInjector::Inject(vtkRenderWindowInteractor* interactor)
     return;
   }
 
+  // intercept interactor
+  auto iStyle = InteractionEventsHelper::GetInteractorStyle(interactor);
+  this->EventHelper->Observe(iStyle, this);
+  interactor->AddObserver(vtkCommand::StartEvent, this, &vtkDearImGUIInjector::EventLoop);
+
   // intercept renderer
   renWin->AddObserver(vtkCommand::StartEvent, this, &vtkDearImGUIInjector::BeginDearImGUIOverlay);
   renWin->AddObserver(vtkCommand::RenderEvent, this, &vtkDearImGUIInjector::RenderDearImGUIOverlay);
 
-  // intercept interactor
-  auto iStyle = GetInteractorStyle(interactor);
-  this->EventHelper->Observe(iStyle, this);
-  interactor->AddObserver(vtkCommand::TimerEvent, this, &vtkDearImGUIInjector::Render);
-
   // Safely exit when vtk app exits
-  interactor->AddObserver(vtkCommand::ExitEvent, this, &vtkDearImGUIInjector::ShutDown);
+  interactor->AddObserver(vtkCommand::ExitEvent, this, &vtkDearImGUIInjector::TearDown);
 }
 
-bool vtkDearImGUIInjector::Init(vtkRenderWindow* renWin)
+bool vtkDearImGUIInjector::SetUp(vtkRenderWindow* renWin)
 {
   if (renWin->GetNeverRendered())
   {
@@ -197,7 +195,7 @@ bool vtkDearImGUIInjector::Init(vtkRenderWindow* renWin)
   io.KeyMap[ImGuiKey_End] = keySymToCode["End"];
   io.KeyMap[ImGuiKey_Insert] = keySymToCode["Insert"];
   io.KeyMap[ImGuiKey_Delete] = keySymToCode["Delete"];
-  io.KeyMap[ImGuiKey_Backspace] = keySymToCode["Backspace"];
+  io.KeyMap[ImGuiKey_Backspace] = keySymToCode["BackSpace"];
   io.KeyMap[ImGuiKey_Space] = keySymToCode["Space"];
   io.KeyMap[ImGuiKey_Enter] = keySymToCode["Enter"];
   io.KeyMap[ImGuiKey_Escape] = keySymToCode["Escape"];
@@ -208,29 +206,57 @@ bool vtkDearImGUIInjector::Init(vtkRenderWindow* renWin)
   io.KeyMap[ImGuiKey_X] = keySymToCode["x"];
   io.KeyMap[ImGuiKey_Y] = keySymToCode["y"];
   io.KeyMap[ImGuiKey_Z] = keySymToCode["z"];
-
-  ImGui_ImplOpenGL3_Init();
-
-  // render everything each time in the event loop
-  this->RenderTimerId = renWin->GetInteractor()->CreateOneShotTimer(0);
-
 #if defined(_WIN32)
   io.BackendPlatformName = renWin->GetClassName();
   io.ImeWindowHandle = renWin->GetGenericWindowId();
 #endif
-  return true;
+  return ImGui_ImplOpenGL3_Init();
+}
+
+void vtkDearImGUIInjector::TearDown(vtkObject* caller, unsigned long eid, void* calldata)
+{
+  ImGui_ImplOpenGL3_Shutdown();
+}
+
+void vtkDearImGUIInjector::EventLoop(vtkObject* caller, unsigned long eid, void* calldata)
+{
+  vtkDebugMacro(<< "Render Now");
+  auto interactor = vtkRenderWindowInteractor::SafeDownCast(caller);
+  auto renWin = interactor->GetRenderWindow();
+  interactor->Enable();
+  interactor->Initialize();
+  ImGuiIO& io = ImGui::GetIO(); (void)io;
+
+  while (true)
+  {
+    interactor->ProcessEvents();
+
+    io.KeyAlt = interactor->GetAltKey();
+    io.KeyCtrl = interactor->GetControlKey();
+    io.KeyShift = interactor->GetShiftKey();
+    
+    if (interactor->GetDone())
+    {
+      break;
+    }
+    renWin->Render();
+  }
 }
 
 void vtkDearImGUIInjector::BeginDearImGUIOverlay(vtkObject* caller, unsigned long eid, void* calldata)
 {
   vtkDebugMacro(<< "BeginDearImGUIOverlay");
   auto renWin = vtkRenderWindow::SafeDownCast(caller);
+  
+  // Ensure valid DearImGui context exists.
   if (!ImGui::GetCurrentContext())
   {
-    vtkDebugMacro(<< "BeginDearImGUIOverlay called, but interactor has not yet started.");
-    return; // wait for interactor to start
+    vtkDebugMacro(<< "BeginDearImGUIOverlay called, but DearImGui context does not exist.");
+    return;
   }
-  if (!this->Init(renWin))
+
+  // Ensure DearImGui has been configured to render with OpenGL
+  if (!this->SetUp(renWin))
   {
     return; // try next time when vtkRenderWindow finished first render
   }
@@ -254,7 +280,7 @@ void vtkDearImGUIInjector::BeginDearImGUIOverlay(vtkObject* caller, unsigned lon
   this->UpdateMousePosAndButtons(interactor);
   this->UpdateMouseCursor(renWin);
 
-  auto iStyle = GetInteractorStyle(interactor);
+  auto iStyle = InteractionEventsHelper::GetInteractorStyle(interactor);
   if (this->EventHelper->GetTarget() != iStyle)
   {
     this->EventHelper->Ignore();
@@ -264,7 +290,30 @@ void vtkDearImGUIInjector::BeginDearImGUIOverlay(vtkObject* caller, unsigned lon
   // Begin ImGUI drawing
   ImGui_ImplOpenGL3_NewFrame();
   ImGui::NewFrame();
-  ImGui::ShowDemoWindow((bool*)1);
+  ImGui::SetNextWindowBgAlpha(0.5);
+  ImGui::SetNextWindowPos(ImVec2(0, 0), ImGuiCond_Always);
+  ImGui::SetNextWindowSize(io.DisplaySize, ImGuiCond_Always);
+  ImGui::Begin(renWin->GetWindowName(), (bool*) 0, ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove);
+  ImGui::Checkbox("Grab mouse input", &this->GrabMouse);
+  // find renderers
+  // for each renderer a tree node
+  // |- camera
+  // |  |- properties (world position, eye matrix, etc)
+  // |- lights
+  // |  |- properties
+  // |- props
+  // |  |- 2d actors
+  // |  |- context actors
+  // |  |- legend scale actor
+  // |  |- 3d props
+  // |  |- widget representation
+  //
+  // 2d actor
+  // |- mapper
+  // |  |- input
+
+  ImGui::End();
+  //ImGui::ShowDemoWindow((bool*)1);
 }
 
 void vtkDearImGUIInjector::RenderDearImGUIOverlay(vtkObject* caller, unsigned long eid, void* calldata)
@@ -283,14 +332,6 @@ void vtkDearImGUIInjector::RenderDearImGUIOverlay(vtkObject* caller, unsigned lo
     ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
     fbo->UnBind();
   }
-}
-
-void vtkDearImGUIInjector::ShutDown(vtkObject* caller, unsigned long eid, void* calldata)
-{
-  ImGui_ImplOpenGL3_Shutdown();
-  auto interactor = vtkRenderWindowInteractor::SafeDownCast(caller);
-  auto renWin = interactor->GetRenderWindow();
-  renWin->GetInteractor()->DestroyTimer(this->RenderTimerId);
 }
 
 void vtkDearImGUIInjector::UpdateMousePosAndButtons(vtkRenderWindowInteractor* interactor)
@@ -334,7 +375,7 @@ void vtkDearImGUIInjector::UpdateMouseCursor(vtkRenderWindow* renWin)
   ImGuiMouseCursor imgui_cursor = ImGui::GetMouseCursor();
   if (imgui_cursor == ImGuiMouseCursor_None || io.MouseDrawCursor)
   {
-    // Hide OS mouse cursor if imgui is drawing it or if it wants no cursor
+    // Hide OS mouse cursor if DearImgui is drawing it or if it wants no cursor
     renWin->HideCursor();
   }
   else
@@ -352,9 +393,7 @@ void vtkDearImGUIInjector::Intercept(vtkObject* caller, unsigned long eid, void*
   auto interactor = iStyle->GetInteractor();
 
   ImGuiIO& io = ImGui::GetIO(); (void)io;
-  io.KeyAlt = interactor->GetAltKey();
-  io.KeyCtrl = interactor->GetControlKey();
-  io.KeyShift = interactor->GetShiftKey();
+  io.WantCaptureMouse = this->GrabMouse;
 
   std::string keySym = "";
   int keyCode = -1;
@@ -490,7 +529,17 @@ void vtkDearImGUIInjector::Intercept(vtkObject* caller, unsigned long eid, void*
     break;
   }
   case vtkCommand::CharEvent:
-  {
+  { 
+    keySym = interactor->GetKeySym();
+    if (keySym.length() != 1)
+    {
+      return;
+    }
+    if (keySymToCode.find(keySym) != keySymToCode.end())
+    {
+      keyCode = keySymToCode[keySym];
+    }
+    io.AddInputCharacter(keySym[0]);
     if (!io.WantCaptureKeyboard)
     {
       iStyle->OnChar();
@@ -515,24 +564,6 @@ void vtkDearImGUIInjector::Intercept(vtkObject* caller, unsigned long eid, void*
     }
     break;
   }
-  default:
-    break;
-  }
-}
-
-void vtkDearImGUIInjector::Render(vtkObject* caller, unsigned long eid, void* calldata)
-{
-  vtkDebugMacro(<< "Render Now");
-  auto interactor = vtkRenderWindowInteractor::SafeDownCast(caller);
-
-  switch (eid)
-  {
-  case vtkCommand::TimerEvent:
-    if (interactor->GetVTKTimerId(*reinterpret_cast<int*>(calldata)) == this->RenderTimerId)
-    {
-      interactor->Render();
-      interactor->ResetTimer(this->RenderTimerId);
-    }
   default:
     break;
   }
