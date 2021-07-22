@@ -13,6 +13,7 @@ if (NOT ParaView_FOUND)
     FiltersCore
     ImagingHybrid
     InteractionStyle
+    InteractionWidgets
     RenderingContextOpenGL2
     RenderingCore
     RenderingFreeType
@@ -52,7 +53,11 @@ target_sources(${PROJECT_NAME} PRIVATE
 )
 target_compile_definitions(${PROJECT_NAME} PUBLIC IMGUI_IMPL_OPENGL_LOADER_CUSTOM="vtk_glew.h")
 target_include_directories(${PROJECT_NAME} PUBLIC "include")
-target_include_directories(${PROJECT_NAME} PRIVATE "imgui" "${PROJECT_BINARY_DIR}")
+target_include_directories(${PROJECT_NAME} PUBLIC "imgui")
+target_include_directories(${PROJECT_NAME} PUBLIC
+  $<BUILD_INTERFACE:${PROJECT_BINARY_DIR}>
+  $<INSTALL_INTERFACE:include>
+)
 target_link_libraries(${PROJECT_NAME} ${VTK_LIBRARIES})
 
 # Install targets
@@ -63,7 +68,6 @@ install(TARGETS ${PROJECT_NAME}
 install(FILES ${PROJECT_NAME}.h ${PROJECT_BINARY_DIR}/${PROJECT_NAME}_export.h DESTINATION include)
 
 add_executable(test_imgui_vtk "src/test_imgui_vtk.cxx")
-target_include_directories(test_imgui_vtk PRIVATE "${PROJECT_BINARY_DIR}")
 target_link_libraries(test_imgui_vtk PRIVATE ${PROJECT_NAME} ${VTK_LIBRARIES})
 vtk_module_autoinit(
     TARGETS test_imgui_vtk

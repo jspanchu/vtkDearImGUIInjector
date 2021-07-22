@@ -17,6 +17,9 @@ public:
   // rendering and interaction callbacks are installed here.
   void Inject(vtkRenderWindowInteractor* interactor);
 
+  // Observe this event and draw application specific ImGUI widgets
+  static const unsigned long ImGUIDrawEvent;
+
 protected:
   vtkDearImGUIInjector();
   ~vtkDearImGUIInjector() override;
@@ -26,12 +29,8 @@ protected:
   void TearDown(vtkObject* caller, unsigned long eid, void* callData);
 
   // hooks into vtkRenderWindow
-  void BeginDearImGUIOverlay(vtkObject* caller,
-                             unsigned long eid,
-                             void* callData);
-  void RenderDearImGUIOverlay(vtkObject* caller,
-                              unsigned long eid,
-                              void* callData);
+  void BeginDearImGUIOverlay(vtkObject* caller, unsigned long eid, void* callData);
+  void RenderDearImGUIOverlay(vtkObject* caller, unsigned long eid, void* callData);
 
   void InstallEventCallback(vtkRenderWindowInteractor* interactor);
   void UninstallEventCallback();
@@ -45,20 +44,23 @@ protected:
 
   // routes events:
   // VTK[X,Win32,Cocoa]Interactor >>>> DearImGUI >>>> VTK[...]InteractorStyle
-  static void DispatchEv(vtkObject* caller,
-                  unsigned long eid,
-                  void* clientData,
-                  void* callData);
+  static void DispatchEv(vtkObject* caller, unsigned long eid, void* clientData, void* callData);
 
   vtkNew<vtkCallbackCommand> EventCallbackCommand;
   vtkWeakPointer<vtkInteractorStyle> iStyle;
+
   unsigned long long Time = 0;
   bool MouseJustPressed[3] = { false, false, false };
-  bool Focused = false;
-  bool GrabMouse = false; // false: pass mouse to vtk, true: imgui accepts mouse
-                          // and doesn't give it to VTK.
-  bool GrabKeyboard = false; // false: pass keys to vtk, true: imgui accepts
-                             // keys and doesn't give it to VTK.
+  bool Focused = true;
+  bool GrabMouse = false;    // true: pass mouse to vtk, false: imgui accepts mouse
+                             // and doesn't give it to VTK (when ui is focused)
+  bool GrabKeyboard = false; // true: pass keys to vtk, false: imgui accepts
+                             // keys and doesn't give it to VTK (when ui is focused)
+
+  bool ShowDemo = false;
+  bool ShowAppMetrics = false;
+  bool ShowAppStyleEditor = false;
+  bool ShowAppAbout = false;
 
 private:
   vtkDearImGUIInjector(const vtkDearImGUIInjector&) = delete;
