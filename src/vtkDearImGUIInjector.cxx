@@ -1,129 +1,55 @@
+#include <vtkCommand.h>
 #include <vtkDearImGUIInjector.h>
 
 #include <chrono>
 #include <string>
 #include <unordered_map>
 
-#include <vtkNew.h>
+#include <vtkCallbackCommand.h>
+#include <vtkInteractorStyleSwitch.h>
 #include <vtkObjectFactory.h>
-#include <vtkOpenGLRenderWindow.h>
 #include <vtkOpenGLFramebufferObject.h>
+#include <vtkOpenGLRenderWindow.h>
 #include <vtkRenderWindow.h>
 #include <vtkRenderWindowInteractor.h>
-#include <vtkInteractorStyleSwitch.h>
 
-#include "imgui.h"
 #include "backends/imgui_impl_opengl3.h"
+#include "imgui.h"
 
 vtkStandardNewMacro(vtkDearImGUIInjector);
 
-class InteractionEventsHelper
-{
-  std::vector<unsigned long> Tags;
-  vtkSmartPointer<vtkInteractorStyle> Target = nullptr;
-public:
-  vtkInteractorStyle* GetTarget() { return Target; }
+namespace {
+std::unordered_map<std::string, int> keySymToCode(
+  { { "Tab", 0 },        { "LeftArrow", 1 },
+    { "RightArrow", 2 }, { "UpArrow", 3 },
+    { "DownArrow", 4 },  { "PageUp", 5 },
+    { "PageDown", 6 },   { "Home", 7 },
+    { "End", 8 },        { "Insert", 9 },
+    { "Delete", 10 },    { "BackSpace", 11 },
+    { "Space", 12 },     { "Enter", 13 },
+    { "Escape", 14 },    { "KeyPadEnter", 15 },
+    { "A", 16 },         { "C", 17 },
+    { "V", 18 },         { "X", 19 },
+    { "Y", 20 },         { "Z", 21 },
+    { "a", 16 },         { "c", 17 },
+    { "v", 18 },         { "x", 19 },
+    { "y", 20 },         { "z", 21 } });
 
-  void Observe(vtkInteractorStyle* iStyle, vtkDearImGUIInjector* observerObj)
-  {
-    this->Tags.push_back(iStyle->AddObserver(vtkCommand::LeftButtonPressEvent, observerObj, &vtkDearImGUIInjector::Intercept));
-    this->Tags.push_back(iStyle->AddObserver(vtkCommand::RightButtonPressEvent, observerObj, &vtkDearImGUIInjector::Intercept));
-    this->Tags.push_back(iStyle->AddObserver(vtkCommand::MiddleButtonPressEvent, observerObj, &vtkDearImGUIInjector::Intercept));
-    this->Tags.push_back(iStyle->AddObserver(vtkCommand::LeftButtonReleaseEvent, observerObj, &vtkDearImGUIInjector::Intercept));
-    this->Tags.push_back(iStyle->AddObserver(vtkCommand::RightButtonReleaseEvent, observerObj, &vtkDearImGUIInjector::Intercept));
-    this->Tags.push_back(iStyle->AddObserver(vtkCommand::MiddleButtonReleaseEvent, observerObj, &vtkDearImGUIInjector::Intercept));
-    this->Tags.push_back(iStyle->AddObserver(vtkCommand::MouseWheelBackwardEvent, observerObj, &vtkDearImGUIInjector::Intercept));
-    this->Tags.push_back(iStyle->AddObserver(vtkCommand::MouseWheelForwardEvent, observerObj, &vtkDearImGUIInjector::Intercept));
-    this->Tags.push_back(iStyle->AddObserver(vtkCommand::MouseWheelLeftEvent, observerObj, &vtkDearImGUIInjector::Intercept));
-    this->Tags.push_back(iStyle->AddObserver(vtkCommand::MouseWheelRightEvent, observerObj, &vtkDearImGUIInjector::Intercept));
-    this->Tags.push_back(iStyle->AddObserver(vtkCommand::KeyPressEvent, observerObj, &vtkDearImGUIInjector::Intercept));
-    this->Tags.push_back(iStyle->AddObserver(vtkCommand::KeyReleaseEvent, observerObj, &vtkDearImGUIInjector::Intercept));
-    this->Tags.push_back(iStyle->AddObserver(vtkCommand::CharEvent, observerObj, &vtkDearImGUIInjector::Intercept));
-    this->Tags.push_back(iStyle->AddObserver(vtkCommand::EnterEvent, observerObj, &vtkDearImGUIInjector::Intercept));
-    this->Tags.push_back(iStyle->AddObserver(vtkCommand::LeaveEvent, observerObj, &vtkDearImGUIInjector::Intercept));
-    iStyle->HandleObserversOn();
-    this->Target = iStyle;
-  }
-
-  void Ignore()
-  {
-    if (this->Target != nullptr)
-    {
-      for (const auto& tag : Tags)
-      {
-        this->Target->RemoveObserver(tag);
-      }
-      this->Target = nullptr;
-    }
-  }
-
-  static vtkInteractorStyle* GetInteractorStyle(vtkRenderWindowInteractor* interactor)
-  {
-    auto styleSwitch = vtkInteractorStyleSwitch::SafeDownCast(interactor->GetInteractorStyle());
-    vtkInteractorStyle* iStyle = nullptr;
-    if (!styleSwitch)
-    {
-      iStyle = vtkInteractorStyle::SafeDownCast(interactor->GetInteractorStyle());
-    }
-    else
-    {
-      iStyle = styleSwitch->GetCurrentStyle();
-    }
-    return iStyle;
-  }
-};
-
-namespace
-{
-  std::unordered_map<std::string, int> keySymToCode({
-    {"Tab", 0},
-    {"LeftArrow", 1},
-    {"RightArrow", 2},
-    {"UpArrow", 3},
-    {"DownArrow", 4},
-    {"PageUp", 5},
-    {"PageDown", 6},
-    {"Home", 7},
-    {"End", 8},
-    {"Insert", 9},
-    {"Delete", 10},
-    {"BackSpace", 11},
-    {"Space", 12},
-    {"Enter", 13},
-    {"Escape", 14},
-    {"KeyPadEnter", 15},
-    {"A", 16},
-    {"C", 17},
-    {"V", 18},
-    {"X", 19},
-    {"Y", 20},
-    {"Z", 21},
-    {"a", 16},
-    {"c", 17},
-    {"v", 18},
-    {"x", 19},
-    {"y", 20},
-    {"z", 21}
-    });
-
-  const std::unordered_map<int, int> imguiToVtkCursors({
-    {ImGuiMouseCursor_None, VTK_CURSOR_DEFAULT},
-    {ImGuiMouseCursor_Arrow, VTK_CURSOR_ARROW},
-    {ImGuiMouseCursor_TextInput, VTK_CURSOR_DEFAULT},
-    {ImGuiMouseCursor_ResizeAll, VTK_CURSOR_SIZEALL},
-    {ImGuiMouseCursor_ResizeNS, VTK_CURSOR_SIZENS},
-    {ImGuiMouseCursor_ResizeEW, VTK_CURSOR_SIZEWE},
-    {ImGuiMouseCursor_ResizeNESW, VTK_CURSOR_SIZENE},
-    {ImGuiMouseCursor_ResizeNWSE, VTK_CURSOR_SIZENW},
-    {ImGuiMouseCursor_Hand, VTK_CURSOR_HAND},
-    {ImGuiMouseCursor_NotAllowed, VTK_CURSOR_DEFAULT}
-    });
+const std::unordered_map<int, int> imguiToVtkCursors(
+  { { ImGuiMouseCursor_None, VTK_CURSOR_DEFAULT },
+    { ImGuiMouseCursor_Arrow, VTK_CURSOR_ARROW },
+    { ImGuiMouseCursor_TextInput, VTK_CURSOR_DEFAULT },
+    { ImGuiMouseCursor_ResizeAll, VTK_CURSOR_SIZEALL },
+    { ImGuiMouseCursor_ResizeNS, VTK_CURSOR_SIZENS },
+    { ImGuiMouseCursor_ResizeEW, VTK_CURSOR_SIZEWE },
+    { ImGuiMouseCursor_ResizeNESW, VTK_CURSOR_SIZENE },
+    { ImGuiMouseCursor_ResizeNWSE, VTK_CURSOR_SIZENW },
+    { ImGuiMouseCursor_Hand, VTK_CURSOR_HAND },
+    { ImGuiMouseCursor_NotAllowed, VTK_CURSOR_DEFAULT } });
 }
 
 vtkDearImGUIInjector::vtkDearImGUIInjector()
 {
-  this->EventHelper = new InteractionEventsHelper();
- 
   // Start DearImGui
   IMGUI_CHECKVERSION();
   ImGui::CreateContext();
@@ -135,55 +61,63 @@ vtkDearImGUIInjector::vtkDearImGUIInjector()
 vtkDearImGUIInjector::~vtkDearImGUIInjector()
 {
   // Destroy DearImGUi
-  if (ImGui::GetCurrentContext())
-  {
+  if (ImGui::GetCurrentContext()) {
     ImGui::DestroyContext();
   }
-  delete this->EventHelper;
-  this->EventHelper = nullptr;
 }
 
-void vtkDearImGUIInjector::Inject(vtkRenderWindowInteractor* interactor)
+void
+vtkDearImGUIInjector::Inject(vtkRenderWindowInteractor* interactor)
 {
-  //this->DebugOn();
   auto renWin = interactor->GetRenderWindow();
-  if (!renWin)
-  {
-    vtkWarningMacro(<< "Interactor does not have a render window!");
+  if (!renWin) {
+    std::cout << "Interactor does not have a render window!\n";
     return;
   }
 
   // intercept interactor
-  auto iStyle = InteractionEventsHelper::GetInteractorStyle(interactor);
-  this->EventHelper->Observe(iStyle, this);
-  interactor->AddObserver(vtkCommand::StartEvent, this, &vtkDearImGUIInjector::EventLoop);
+  this->EventCallbackCommand->SetClientData(this);
+  this->EventCallbackCommand->SetCallback(&vtkDearImGUIInjector::DispatchEv);
+  interactor->AddObserver(
+    vtkCommand::StartEvent, this, &vtkDearImGUIInjector::PumpEv);
 
   // intercept renderer
-  renWin->AddObserver(vtkCommand::StartEvent, this, &vtkDearImGUIInjector::BeginDearImGUIOverlay);
-  renWin->AddObserver(vtkCommand::RenderEvent, this, &vtkDearImGUIInjector::RenderDearImGUIOverlay);
+  renWin->AddObserver(
+    vtkCommand::StartEvent, this, &vtkDearImGUIInjector::BeginDearImGUIOverlay);
+  renWin->AddObserver(vtkCommand::RenderEvent,
+                      this,
+                      &vtkDearImGUIInjector::RenderDearImGUIOverlay);
 
   // Safely exit when vtk app exits
-  interactor->AddObserver(vtkCommand::ExitEvent, this, &vtkDearImGUIInjector::TearDown);
+  interactor->AddObserver(
+    vtkCommand::ExitEvent, this, &vtkDearImGUIInjector::TearDown);
 }
 
-bool vtkDearImGUIInjector::SetUp(vtkRenderWindow* renWin)
+bool
+vtkDearImGUIInjector::SetUp(vtkRenderWindow* renWin)
 {
-  if (renWin->GetNeverRendered())
-  {
+  if (renWin->GetNeverRendered()) {
     vtkDebugMacro(<< "Init called, but render library is not setup. Hold on..");
     return false; // too early
   }
-  if (!this->Time)
-  {
+  if (!this->Time) {
     using namespace std::chrono;
-    this->Time = duration_cast<milliseconds>(system_clock::now().time_since_epoch()).count();
+    this->Time =
+      duration_cast<milliseconds>(system_clock::now().time_since_epoch())
+        .count();
   }
 
-  ImGuiIO& io = ImGui::GetIO(); (void)io;
-  io.BackendFlags |= ImGuiBackendFlags_HasMouseCursors;         // We can honor GetMouseCursor() values (optional)
-  io.BackendFlags |= ImGuiBackendFlags_HasSetMousePos;          // We can honor io.WantSetMousePos requests (optional, rarely used)
+  ImGuiIO& io = ImGui::GetIO();
+  (void)io;
+  io.BackendFlags |=
+    ImGuiBackendFlags_HasMouseCursors; // We can honor GetMouseCursor() values
+                                       // (optional)
+  io.BackendFlags |=
+    ImGuiBackendFlags_HasSetMousePos; // We can honor io.WantSetMousePos
+                                      // requests (optional, rarely used)
 
-  // Keyboard mapping. Dear ImGui will use those indices to peek into the io.KeysDown[] array.
+  // Keyboard mapping. Dear ImGui will use those indices to peek into the
+  // io.KeysDown[] array.
   io.KeyMap[ImGuiKey_Tab] = keySymToCode["Tab"];
   io.KeyMap[ImGuiKey_LeftArrow] = keySymToCode["LeftArrow"];
   io.KeyMap[ImGuiKey_RightArrow] = keySymToCode["RightArrow"];
@@ -213,51 +147,31 @@ bool vtkDearImGUIInjector::SetUp(vtkRenderWindow* renWin)
   return ImGui_ImplOpenGL3_Init();
 }
 
-void vtkDearImGUIInjector::TearDown(vtkObject* caller, unsigned long eid, void* calldata)
+void
+vtkDearImGUIInjector::TearDown(vtkObject* caller,
+                               unsigned long eid,
+                               void* callData)
 {
   ImGui_ImplOpenGL3_Shutdown();
 }
 
-void vtkDearImGUIInjector::EventLoop(vtkObject* caller, unsigned long eid, void* calldata)
-{
-  vtkDebugMacro(<< "Render Now");
-  auto interactor = vtkRenderWindowInteractor::SafeDownCast(caller);
-  auto renWin = interactor->GetRenderWindow();
-  interactor->Enable();
-  interactor->Initialize();
-  ImGuiIO& io = ImGui::GetIO(); (void)io;
-
-  while (true)
-  {
-    interactor->ProcessEvents();
-
-    io.KeyAlt = interactor->GetAltKey();
-    io.KeyCtrl = interactor->GetControlKey();
-    io.KeyShift = interactor->GetShiftKey();
-    
-    if (interactor->GetDone())
-    {
-      break;
-    }
-    renWin->Render();
-  }
-}
-
-void vtkDearImGUIInjector::BeginDearImGUIOverlay(vtkObject* caller, unsigned long eid, void* calldata)
+void
+vtkDearImGUIInjector::BeginDearImGUIOverlay(vtkObject* caller,
+                                            unsigned long eid,
+                                            void* callData)
 {
   vtkDebugMacro(<< "BeginDearImGUIOverlay");
   auto renWin = vtkRenderWindow::SafeDownCast(caller);
-  
+
   // Ensure valid DearImGui context exists.
-  if (!ImGui::GetCurrentContext())
-  {
-    vtkDebugMacro(<< "BeginDearImGUIOverlay called, but DearImGui context does not exist.");
+  if (!ImGui::GetCurrentContext()) {
+    vtkDebugMacro(
+      << "BeginDearImGUIOverlay called, but DearImGui context does not exist.");
     return;
   }
 
   // Ensure DearImGui has been configured to render with OpenGL
-  if (!this->SetUp(renWin))
-  {
+  if (!this->SetUp(renWin)) {
     return; // try next time when vtkRenderWindow finished first render
   }
 
@@ -271,21 +185,15 @@ void vtkDearImGUIInjector::BeginDearImGUIOverlay(vtkObject* caller, unsigned lon
 
   // Setup time step
   using namespace std::chrono;
-  auto currentTime = duration_cast<milliseconds>(system_clock::now().time_since_epoch()).count();
+  auto currentTime =
+    duration_cast<milliseconds>(system_clock::now().time_since_epoch()).count();
   io.DeltaTime = currentTime > 0 ? (currentTime - this->Time) : (1.0f / 60.0f);
   io.DeltaTime /= 1000.0f;
-  this->Time = currentTime;
+  this->Time += io.DeltaTime;
 
   auto interactor = renWin->GetInteractor();
   this->UpdateMousePosAndButtons(interactor);
   this->UpdateMouseCursor(renWin);
-
-  auto iStyle = InteractionEventsHelper::GetInteractorStyle(interactor);
-  if (this->EventHelper->GetTarget() != iStyle)
-  {
-    this->EventHelper->Ignore();
-    this->EventHelper->Observe(iStyle, this);
-  }
 
   // Begin ImGUI drawing
   ImGui_ImplOpenGL3_NewFrame();
@@ -293,7 +201,9 @@ void vtkDearImGUIInjector::BeginDearImGUIOverlay(vtkObject* caller, unsigned lon
   ImGui::SetNextWindowBgAlpha(0.5);
   ImGui::SetNextWindowPos(ImVec2(0, 0), ImGuiCond_Always);
   ImGui::SetNextWindowSize(io.DisplaySize, ImGuiCond_Always);
-  ImGui::Begin(renWin->GetWindowName(), (bool*) 0, ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove);
+  ImGui::Begin(renWin->GetWindowName(),
+               (bool*)0,
+               ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove);
   ImGui::Checkbox("Grab mouse input", &this->GrabMouse);
   // find renderers
   // for each renderer a tree node
@@ -313,33 +223,133 @@ void vtkDearImGUIInjector::BeginDearImGUIOverlay(vtkObject* caller, unsigned lon
   // |  |- input
 
   ImGui::End();
-  //ImGui::ShowDemoWindow((bool*)1);
+  // ImGui::ShowDemoWindow((bool*)1);
 }
 
-void vtkDearImGUIInjector::RenderDearImGUIOverlay(vtkObject* caller, unsigned long eid, void* calldata)
+void
+vtkDearImGUIInjector::RenderDearImGUIOverlay(vtkObject* caller,
+                                             unsigned long eid,
+                                             void* callData)
 {
   vtkDebugMacro(<< "RenderDearImGUIOverlay");
   auto renWin = vtkRenderWindow::SafeDownCast(caller);
   auto openGLrenWin = vtkOpenGLRenderWindow::SafeDownCast(renWin);
   ImGuiIO& io = ImGui::GetIO();
-  if (io.Fonts->IsBuilt())
-  {
+  if (io.Fonts->IsBuilt()) {
     ImGui::Render();
     auto fbo = openGLrenWin->GetRenderFramebuffer();
     fbo->Bind();
     fbo->ActivateDrawBuffer(
-      (openGLrenWin->GetStereoRender() && openGLrenWin->GetStereoType() == VTK_STEREO_CRYSTAL_EYES) ? 1 : 0);
+      (openGLrenWin->GetStereoRender() &&
+       openGLrenWin->GetStereoType() == VTK_STEREO_CRYSTAL_EYES)
+        ? 1
+        : 0);
     ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
     fbo->UnBind();
   }
 }
 
-void vtkDearImGUIInjector::UpdateMousePosAndButtons(vtkRenderWindowInteractor* interactor)
+void
+vtkDearImGUIInjector::InstallEventCallback(
+  vtkRenderWindowInteractor* interactor)
+{
+  auto iObserver = interactor->GetInteractorStyle();
+  if (iObserver == nullptr) {
+    return;
+  }
+  auto styleBase = vtkInteractorStyle::SafeDownCast(iObserver);
+  if (styleBase == nullptr) {
+    return;
+  }
+
+  this->iStyle = nullptr;
+  if (styleBase->IsA("vtkInteractorStyleSwitchBase")) {
+    this->iStyle =
+      vtkInteractorStyleSwitch::SafeDownCast(styleBase)->GetCurrentStyle();
+  } else {
+    this->iStyle = styleBase;
+  }
+
+  this->iStyle->AddObserver(
+    vtkCommand::EnterEvent, this->EventCallbackCommand, 1.0);
+
+  this->iStyle->AddObserver(
+    vtkCommand::LeaveEvent, this->EventCallbackCommand, 1.0);
+
+  this->iStyle->AddObserver(
+    vtkCommand::MouseMoveEvent, this->EventCallbackCommand, 1.0);
+
+  this->iStyle->AddObserver(
+    vtkCommand::LeftButtonPressEvent, this->EventCallbackCommand, 1.0);
+
+  this->iStyle->AddObserver(
+    vtkCommand::LeftButtonReleaseEvent, this->EventCallbackCommand, 1.0);
+
+  this->iStyle->AddObserver(
+    vtkCommand::LeftButtonDoubleClickEvent, this->EventCallbackCommand, 1.0);
+
+  this->iStyle->AddObserver(
+    vtkCommand::MiddleButtonPressEvent, this->EventCallbackCommand, 1.0);
+
+  this->iStyle->AddObserver(
+    vtkCommand::MiddleButtonReleaseEvent, this->EventCallbackCommand, 1.0);
+
+  this->iStyle->AddObserver(
+    vtkCommand::MiddleButtonDoubleClickEvent, this->EventCallbackCommand, 1.0);
+
+  this->iStyle->AddObserver(
+    vtkCommand::RightButtonPressEvent, this->EventCallbackCommand, 1.0);
+
+  this->iStyle->AddObserver(
+    vtkCommand::RightButtonReleaseEvent, this->EventCallbackCommand, 1.0);
+
+  this->iStyle->AddObserver(
+    vtkCommand::RightButtonDoubleClickEvent, this->EventCallbackCommand, 1.0);
+
+  this->iStyle->AddObserver(
+    vtkCommand::MouseWheelForwardEvent, this->EventCallbackCommand, 1.0);
+
+  this->iStyle->AddObserver(
+    vtkCommand::MouseWheelBackwardEvent, this->EventCallbackCommand, 1.0);
+
+  this->iStyle->AddObserver(
+    vtkCommand::MouseWheelLeftEvent, this->EventCallbackCommand, 1.0);
+
+  this->iStyle->AddObserver(
+    vtkCommand::MouseWheelRightEvent, this->EventCallbackCommand, 1.0);
+
+  this->iStyle->AddObserver(
+    vtkCommand::ExposeEvent, this->EventCallbackCommand, 1.0);
+
+  this->iStyle->AddObserver(
+    vtkCommand::ConfigureEvent, this->EventCallbackCommand, 1.0);
+
+  this->iStyle->AddObserver(
+    vtkCommand::TimerEvent, this->EventCallbackCommand, 1.0);
+
+  this->iStyle->AddObserver(
+    vtkCommand::KeyPressEvent, this->EventCallbackCommand, 1.0);
+
+  this->iStyle->AddObserver(
+    vtkCommand::KeyReleaseEvent, this->EventCallbackCommand, 1.0);
+
+  this->iStyle->AddObserver(
+    vtkCommand::CharEvent, this->EventCallbackCommand, 1.0);
+}
+
+void
+vtkDearImGUIInjector::UninstallEventCallback()
+{
+  this->iStyle->RemoveObserver(this->EventCallbackCommand);
+}
+
+void
+vtkDearImGUIInjector::UpdateMousePosAndButtons(
+  vtkRenderWindowInteractor* interactor)
 {
   // Update buttons
   ImGuiIO& io = ImGui::GetIO();
-  for (int i = 0; i < 3; i++)
-  {
+  for (int i = 0; i < 3; i++) {
     io.MouseDown[i] = this->MouseJustPressed[i];
   }
 
@@ -349,16 +359,14 @@ void vtkDearImGUIInjector::UpdateMousePosAndButtons(vtkRenderWindowInteractor* i
 #ifdef __EMSCRIPTEN__
   this->Focused = true; // Emscripten
 #endif
-  if (this->Focused)
-  {
-    if (io.WantSetMousePos)
-    {
-      int xpos = static_cast<int>(mouse_pos_backup.x) - static_cast<int>(ImGui::GetWindowPos().x);
-      int ypos = static_cast<int>(mouse_pos_backup.y) - static_cast<int>(ImGui::GetWindowPos().y);
+  if (this->Focused) {
+    if (io.WantSetMousePos) {
+      int xpos = static_cast<int>(mouse_pos_backup.x) -
+                 static_cast<int>(ImGui::GetWindowPos().x);
+      int ypos = static_cast<int>(mouse_pos_backup.y) -
+                 static_cast<int>(ImGui::GetWindowPos().y);
       interactor->SetEventPositionFlipY(xpos, ypos);
-    }
-    else
-    {
+    } else {
       int mouse_x, mouse_y;
       interactor->GetLastEventPosition(mouse_x, mouse_y);
       io.MousePos = ImVec2((float)mouse_x, io.DisplaySize.y - (float)mouse_y);
@@ -366,205 +374,247 @@ void vtkDearImGUIInjector::UpdateMousePosAndButtons(vtkRenderWindowInteractor* i
   }
 }
 
-void vtkDearImGUIInjector::UpdateMouseCursor(vtkRenderWindow* renWin)
+void
+vtkDearImGUIInjector::UpdateMouseCursor(vtkRenderWindow* renWin)
 {
   ImGuiIO& io = ImGui::GetIO();
   if ((io.ConfigFlags & ImGuiConfigFlags_NoMouseCursorChange))
     return;
 
   ImGuiMouseCursor imgui_cursor = ImGui::GetMouseCursor();
-  if (imgui_cursor == ImGuiMouseCursor_None || io.MouseDrawCursor)
-  {
+  if (imgui_cursor == ImGuiMouseCursor_None || io.MouseDrawCursor) {
     // Hide OS mouse cursor if DearImgui is drawing it or if it wants no cursor
     renWin->HideCursor();
-  }
-  else
-  {
+  } else {
     // Show OS mouse cursor
     renWin->SetCurrentCursor(imguiToVtkCursors.at(imgui_cursor));
     renWin->ShowCursor();
   }
 }
 
-void vtkDearImGUIInjector::Intercept(vtkObject* caller, unsigned long eid, void* calldata)
+void
+vtkDearImGUIInjector::PumpEv(vtkObject* caller,
+                             unsigned long eid,
+                             void* callData)
 {
-  vtkDebugMacro(<< "Intercept");
-  auto iStyle = vtkInteractorStyle::SafeDownCast(caller);
-  auto interactor = iStyle->GetInteractor();
+  vtkDebugMacro(<< "PumpEv");
+  auto interactor = vtkRenderWindowInteractor::SafeDownCast(caller);
+  auto renWin = interactor->GetRenderWindow();
+  interactor->Enable();
+  interactor->Initialize();
+  // so that imgui is not simply drawn multiple times.
+  // interactor->EnableRenderOff();
 
-  ImGuiIO& io = ImGui::GetIO(); (void)io;
-  io.WantCaptureMouse = this->GrabMouse;
+  while (!interactor->GetDone()) {
+    this->InstallEventCallback(interactor);
+    interactor->ProcessEvents();
+    this->UninstallEventCallback();
+    renWin->Render();
+  }
+}
+
+void
+vtkDearImGUIInjector::DispatchEv(vtkObject* caller,
+                                 unsigned long eid,
+                                 void* clientData,
+                                 void* callData)
+{
+  // auto interactor = vtkRenderWindowInteractor::SafeDownCast(caller);
+  auto iStyle = vtkInteractorStyle::SafeDownCast(caller);
+  auto self = reinterpret_cast<vtkDearImGUIInjector*>(clientData);
 
   std::string keySym = "";
   int keyCode = -1;
-  switch (eid)
-  {
-  case vtkCommand::LeftButtonPressEvent:
-  {
-    this->MouseJustPressed[ImGuiMouseButton_Left] = true;
-    if (!io.WantCaptureMouse)
-    {
-      iStyle->OnLeftButtonDown();
+
+  ImGuiIO& io = ImGui::GetIO();
+  (void)io;
+
+  switch (eid) {
+    case vtkCommand::EnterEvent: {
+      self->Focused = true;
+      std::cout << "EnterEvent\n";
+      break;
     }
-    break;
-  }
-  case vtkCommand::RightButtonPressEvent:
-  {
-    this->MouseJustPressed[ImGuiMouseButton_Right] = true;
-    if (!io.WantCaptureMouse)
-    { 
-      iStyle->OnRightButtonDown(); 
+    case vtkCommand::LeaveEvent: {
+      self->Focused = false;
+      std::cout << "LeaveEvent\n";
+      break;
     }
-    break;
-  }
-  case vtkCommand::MiddleButtonPressEvent:
-  {
-    this->MouseJustPressed[ImGuiMouseButton_Middle] = true;
-    if (!io.WantCaptureMouse)
-    {
-      iStyle->OnMiddleButtonDown();
+    case vtkCommand::MouseMoveEvent: {
+      std::cout << "Mouse moved " << io.MousePos[0] << ", " << io.MousePos[1]
+                << "\n";
+      if (!io.WantCaptureMouse || (io.WantCaptureMouse && !self->GrabMouse)) {
+        iStyle->OnMouseMove();
+      }
+      break;
     }
-    break;
-  }
-  case vtkCommand::LeftButtonReleaseEvent:
-  {
-    this->MouseJustPressed[ImGuiMouseButton_Left] = false;
-    if (!io.WantCaptureMouse)
-    {
-      iStyle->OnLeftButtonUp();
+    case vtkCommand::LeftButtonPressEvent: {
+      self->MouseJustPressed[ImGuiMouseButton_Left] = true;
+      std::cout << "LeftButtonPressEvent\n";
+      if (!io.WantCaptureMouse || (io.WantCaptureMouse && !self->GrabMouse)) {
+        iStyle->OnLeftButtonDown();
+      }
+      break;
     }
-    break;
-  }
-  case vtkCommand::RightButtonReleaseEvent:
-  {
-    this->MouseJustPressed[ImGuiMouseButton_Right] = false;
-    if (!io.WantCaptureMouse)
-    {
-      iStyle->OnRightButtonUp();
+    case vtkCommand::LeftButtonReleaseEvent: {
+      self->MouseJustPressed[ImGuiMouseButton_Left] = false;
+      std::cout << "LeftButtonReleaseEvent\n";
+      if (!io.WantCaptureMouse || (io.WantCaptureMouse && !self->GrabMouse)) {
+        iStyle->OnLeftButtonUp();
+      }
+      break;
     }
-    break;
-  }
-  case vtkCommand::MiddleButtonReleaseEvent:
-  {
-    this->MouseJustPressed[ImGuiMouseButton_Middle] = false;
-    if (!io.WantCaptureMouse)
-    {
-      iStyle->OnMiddleButtonUp();
+    case vtkCommand::LeftButtonDoubleClickEvent: {
+      io.MouseDoubleClicked[ImGuiMouseButton_Left] = true;
+      std::cout << "LeftButtonDoubleClickEvent\n";
+      if (!io.WantCaptureMouse || (io.WantCaptureMouse && !self->GrabMouse)) {
+        iStyle->OnLeftButtonDoubleClick();
+      }
+      break;
     }
-    break;
-  }
-  case vtkCommand::MouseWheelBackwardEvent:
-  {
-    io.MouseWheel = -1;
-    if (!io.WantCaptureMouse)
-    {
-      iStyle->OnMouseWheelBackward();
+    case vtkCommand::MiddleButtonPressEvent: {
+      self->MouseJustPressed[ImGuiMouseButton_Middle] = true;
+      std::cout << "MiddleButtonPressEvent\n";
+      if (!io.WantCaptureMouse || (io.WantCaptureMouse && !self->GrabMouse)) {
+        iStyle->OnMiddleButtonDown();
+      }
+      break;
     }
-    break;
-  }
-  case vtkCommand::MouseWheelForwardEvent:
-    io.MouseWheel = 1;
-    {
-      if (!io.WantCaptureMouse)
-      {
+    case vtkCommand::MiddleButtonReleaseEvent: {
+      self->MouseJustPressed[ImGuiMouseButton_Middle] = false;
+      std::cout << "MiddleButtonReleaseEvent\n";
+      if (!io.WantCaptureMouse || (io.WantCaptureMouse && !self->GrabMouse)) {
+        iStyle->OnMiddleButtonUp();
+      }
+      break;
+    }
+    case vtkCommand::MiddleButtonDoubleClickEvent: {
+      io.MouseDoubleClicked[ImGuiMouseButton_Middle] = true;
+      std::cout << "MiddleButtonDoubleClickEvent\n";
+      if (!io.WantCaptureMouse || (io.WantCaptureMouse && !self->GrabMouse)) {
+        iStyle->OnMiddleButtonDoubleClick();
+      }
+      break;
+    }
+    case vtkCommand::RightButtonPressEvent: {
+      self->MouseJustPressed[ImGuiMouseButton_Right] = true;
+      std::cout << "RightButtonPressEvent\n";
+      if (!io.WantCaptureMouse || (io.WantCaptureMouse && !self->GrabMouse)) {
+        iStyle->OnRightButtonDown();
+      }
+      break;
+    }
+    case vtkCommand::RightButtonReleaseEvent: {
+      self->MouseJustPressed[ImGuiMouseButton_Right] = false;
+      std::cout << "RightButtonReleaseEvent\n";
+      if (!io.WantCaptureMouse || (io.WantCaptureMouse && !self->GrabMouse)) {
+        iStyle->OnRightButtonUp();
+      }
+      break;
+    }
+    case vtkCommand::RightButtonDoubleClickEvent: {
+      io.MouseDoubleClicked[ImGuiMouseButton_Right] = true;
+      std::cout << "RightButtonDoubleClickEvent\n";
+      if (!io.WantCaptureMouse || (io.WantCaptureMouse && !self->GrabMouse)) {
+        iStyle->OnRightButtonDoubleClick();
+      }
+      break;
+    }
+    case vtkCommand::MouseWheelBackwardEvent: {
+      io.MouseWheel = -1;
+      std::cout << "MouseWheelBackwardEvent\n";
+      if (!io.WantCaptureMouse || (io.WantCaptureMouse && !self->GrabMouse)) {
+        iStyle->OnMouseWheelBackward();
+      }
+      break;
+    }
+    case vtkCommand::MouseWheelForwardEvent: {
+      io.MouseWheel = 1;
+      std::cout << "MouseWheelForwardEvent\n";
+      if (!io.WantCaptureMouse || (io.WantCaptureMouse && !self->GrabMouse)) {
         iStyle->OnMouseWheelForward();
       }
       break;
     }
-  case vtkCommand::MouseWheelLeftEvent:
-  {
-    io.MouseWheelH = 1;
-    if (!io.WantCaptureMouse)
-    {
-      iStyle->OnMouseWheelLeft();
+    case vtkCommand::MouseWheelLeftEvent: {
+      io.MouseWheelH = 1;
+      std::cout << "MouseWheelLeftEvent\n";
+      if (!io.WantCaptureMouse || (io.WantCaptureMouse && !self->GrabMouse)) {
+        iStyle->OnMouseWheelLeft();
+      }
+      break;
     }
-    break;
-  }
-  case vtkCommand::MouseWheelRightEvent:
-  {
-    io.MouseWheelH = -1;
-    if (!io.WantCaptureMouse)
-    {
-      iStyle->OnMouseWheelRight();
+    case vtkCommand::MouseWheelRightEvent: {
+      io.MouseWheelH = -1;
+      std::cout << "MouseWheelRightEvent\n";
+      if (!io.WantCaptureMouse || (io.WantCaptureMouse && !self->GrabMouse)) {
+        iStyle->OnMouseWheelRight();
+      }
+      break;
     }
-    break;
-  }
-  case vtkCommand::KeyPressEvent:
-  {
-    keySym = interactor->GetKeySym();
-    if (keySymToCode.find(keySym) != keySymToCode.end())
-    {
-      keyCode = keySymToCode[keySym];
+    case vtkCommand::ConfigureEvent: {
+      std::cout << "ConfigureEvent\n";
+      iStyle->OnConfigure();
+      break;
     }
-    if (keyCode >= 0)
-    {
-      keyCode = keySymToCode[keySym];
-      io.KeysDown[keyCode] = true;
-      io.KeySuper = (keySym == "Win_L") || (keySym == "Win_R") || (keySym == "Meta_L") || (keySym == "Meta_R");
+    case vtkCommand::TimerEvent: {
+      std::cout << "TimerEvent\n";
+      iStyle->OnTimer();
+      break;
     }
-    if (!io.WantCaptureKeyboard)
-    {
-      iStyle->OnKeyDown();
-      iStyle->OnKeyPress();
+    case vtkCommand::KeyPressEvent: {
+      keySym = iStyle->GetInteractor()->GetKeySym();
+      if (keySymToCode.find(keySym) != keySymToCode.end()) {
+        keyCode = keySymToCode[keySym];
+      }
+      if (keyCode >= 0) {
+        keyCode = keySymToCode[keySym];
+        io.KeysDown[keyCode] = true;
+        io.KeySuper = (keySym == "Win_L") || (keySym == "Win_R") ||
+                      (keySym == "Meta_L") || (keySym == "Meta_R");
+      }
+      std::cout << "KeyPressEvent\n";
+      if (!io.WantCaptureKeyboard || (io.WantCaptureKeyboard && !self->GrabKeyboard))
+      {
+        iStyle->OnKeyDown();
+        iStyle->OnKeyPress();
+      }
+      break;
     }
-    break;
-  }
-  case vtkCommand::KeyReleaseEvent:
-  {
-    keySym = interactor->GetKeySym();
-    if (keySymToCode.find(keySym) != keySymToCode.end())
-    {
-      keyCode = keySymToCode[keySym];
+    case vtkCommand::KeyReleaseEvent: {
+      keySym = iStyle->GetInteractor()->GetKeySym();
+      if (keySymToCode.find(keySym) != keySymToCode.end()) {
+        keyCode = keySymToCode[keySym];
+      }
+      if (keyCode >= 0) {
+        io.KeysDown[keyCode] = false;
+        io.KeySuper = false;
+      }
+      std::cout << "KeyReleaseEvent\n";
+      if (!io.WantCaptureKeyboard || (io.WantCaptureKeyboard && !self->GrabKeyboard))
+      {
+        iStyle->OnKeyUp();
+        iStyle->OnKeyRelease();
+      }
+      break;
     }
-    if (keyCode >= 0)
-    {
-      io.KeysDown[keyCode] = false;
-      io.KeySuper = false;
+    case vtkCommand::CharEvent: {
+      keySym = iStyle->GetInteractor()->GetKeySym();
+      if (keySym.length() != 1) {
+        return;
+      }
+      if (keySymToCode.find(keySym) != keySymToCode.end()) {
+        keyCode = keySymToCode[keySym];
+      }
+      io.AddInputCharacter(keySym[0]);
+      std::cout << "CharEvent\n";
+      if (!io.WantCaptureKeyboard || (io.WantCaptureKeyboard && !self->GrabKeyboard))
+      {
+        iStyle->OnChar();
+      }
+      break;
     }
-    if (!io.WantCaptureKeyboard)
-    {
-      iStyle->OnKeyUp();
-      iStyle->OnKeyRelease();
-    }
-    break;
-  }
-  case vtkCommand::CharEvent:
-  { 
-    keySym = interactor->GetKeySym();
-    if (keySym.length() != 1)
-    {
-      return;
-    }
-    if (keySymToCode.find(keySym) != keySymToCode.end())
-    {
-      keyCode = keySymToCode[keySym];
-    }
-    io.AddInputCharacter(keySym[0]);
-    if (!io.WantCaptureKeyboard)
-    {
-      iStyle->OnChar();
-    }
-    break;
-  }
-  case vtkCommand::EnterEvent:
-  {
-    this->Focused = true;
-    if (!io.WantCaptureMouse)
-    {
-      iStyle->OnEnter();
-    }
-    break;
-  }
-  case vtkCommand::LeaveEvent:
-  {
-    this->Focused = false;
-    if (!io.WantCaptureMouse)
-    {
-      iStyle->OnLeave();
-    }
-    break;
-  }
-  default:
-    break;
+    default:
+      break;
   }
 }

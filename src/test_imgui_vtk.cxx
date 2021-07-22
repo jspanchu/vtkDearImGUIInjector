@@ -4,6 +4,7 @@
 #include <vtkColor.h>
 #include <vtkContourFilter.h>
 #include <vtkImplicitBoolean.h>
+#include <vtkInteractorStyleImage.h>
 #include <vtkNamedColors.h>
 #include <vtkNew.h>
 #include <vtkPolyDataMapper.h>
@@ -16,7 +17,8 @@
 
 #include <vtkDearImGUIInjector.h>
 
-int main(int argc, char* argv[])
+int
+main(int argc, char* argv[])
 {
   // Define colors
   vtkNew<vtkNamedColors> colors;
