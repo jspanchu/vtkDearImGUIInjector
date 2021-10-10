@@ -8,35 +8,33 @@ on:
 
 jobs:
   build:
-
     runs-on: ubuntu-latest
     container: 
       image: jspanchu/vtk-wasm-target:latest
       options: -v ${{ github.workspace }}:/project/src
     steps:
-    - uses: actions/checkout@main
+    - uses: actions/checkout@v2
+      with:
+        submodules: 'true'
     - name: Pull & update submodules recursively
       run: |
         git submodule update --init --recursive
         git submodule update --recursive --remote
-    - name: Build the WebAssembly binary in the jspanchu/vtk-wasm-target container
+    - name: Configure
       run: |
         mkdir /project/build
         emcmake cmake -GNinja -S /project/src -B /project/build -DCMAKE_BUILD_TYPE=Release -DBUILD_SHARED_LIBS=OFF
+    - name: Build
+      run:
         cmake --build /project/build
     - name: Move binaries into project.
       run: |
         mv /project/build/*.js /project/src/
         mv /project/build/*.wasm /project/src/
-    - name: switching from HTTPS to SSH
-      run: git remote set-url origin ${{ secrets.ssh }}
-    - name: check for changes
-      run: git status
-    - name: stage changed files
-      run: git add imgui_vtk_app.js imgui_vtk_app.wasm
-    - name: commit changed files
-      run: git commit -m "Deploy WebAssembly binaries"
-    - name: fetch from master
-      run: git fetch origin master
-    - name: push code to master
-      run: git push origin HEAD:master
+    - name: Commit JS + WASM
+      run: |
+          git config user.name Jaswant Panchumarti
+          git config user.email jspanchu@gmail.com
+          git add  /project/src/imgui_vtk_app.js  /project/src/imgui_vtk_app.wasm
+          git commit -m "Deploy WebAssembly binaries"
+          git push origin HEAD:master
