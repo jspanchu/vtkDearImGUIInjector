@@ -59,7 +59,7 @@ protected:
   bool GrabKeyboard = false; // true: pass keys to vtk, false: imgui accepts
                              // keys and doesn't give it to VTK (when ui is focused)
 
-  bool ShowDemo = false;
+  bool ShowDemo = true;
   bool ShowAppMetrics = false;
   bool ShowAppStyleEditor = false;
   bool ShowAppAbout = false;
