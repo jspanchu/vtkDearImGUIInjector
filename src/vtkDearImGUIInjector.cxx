@@ -19,6 +19,10 @@
 #include "backends/imgui_impl_opengl3.h"
 #include "imgui.h"
 
+#ifdef __EMSCRIPTEN__
+#include "emscripten.h"
+#endif
+
 vtkStandardNewMacro(vtkDearImGUIInjector);
 
 namespace
@@ -64,10 +68,15 @@ vtkDearImGUIInjector::~vtkDearImGUIInjector()
 
 void vtkDearImGUIInjector::Inject(vtkRenderWindowInteractor* interactor)
 {
+  if (this->FinishedSetup)
+  {
+    vtkErrorMacro(<< "Inject must be called only once!");
+  }
+
+  this->Interactor = interactor;
   auto renWin = interactor->GetRenderWindow();
   if (!renWin)
   {
-
     return;
   }
 
@@ -91,10 +100,9 @@ bool vtkDearImGUIInjector::SetUp(vtkRenderWindow* renWin)
     vtkDebugMacro(<< "Init called, but render library is not setup. Hold on..");
     return false; // too early
   }
-  if (!this->Time)
+  if (this->FinishedSetup)
   {
-    using namespace std::chrono;
-    this->Time = duration_cast<milliseconds>(system_clock::now().time_since_epoch()).count();
+    return this->FinishedSetup;
   }
 
   ImGuiIO& io = ImGui::GetIO();
@@ -130,6 +138,7 @@ bool vtkDearImGUIInjector::SetUp(vtkRenderWindow* renWin)
   io.BackendPlatformName = renWin->GetClassName();
   io.ImeWindowHandle = renWin->GetGenericWindowId();
 #endif
+  this->FinishedSetup = true;
   return ImGui_ImplOpenGL3_Init();
 }
 
@@ -172,8 +181,8 @@ void vtkDearImGUIInjector::BeginDearImGUIOverlay(
 
   // Increment time for DearImGUI
   using namespace std::chrono;
-  auto currentTime = duration_cast<milliseconds>(system_clock::now().time_since_epoch()).count();
-  io.DeltaTime = (currentTime - this->Time) / 1000.0f; // imgui expects this to be in seconds.
+  auto currentTime = float(duration_cast<milliseconds>(high_resolution_clock::now().time_since_epoch()).count()) / 1000.f;
+  io.DeltaTime =  this->Time > 0.0 ? (currentTime - this->Time) : (1.0f / 60.0f);
   this->Time = currentTime;
 
   auto interactor = renWin->GetInteractor();
@@ -259,67 +268,67 @@ void vtkDearImGUIInjector::InstallEventCallback(vtkRenderWindowInteractor* inter
     return;
   }
 
-  this->iStyle = nullptr;
+  this->currentIStyle = nullptr;
   if (styleBase->IsA("vtkInteractorStyleSwitchBase"))
   {
-    this->iStyle = vtkInteractorStyleSwitch::SafeDownCast(styleBase)->GetCurrentStyle();
+    this->currentIStyle = vtkInteractorStyleSwitch::SafeDownCast(styleBase)->GetCurrentStyle();
   }
   else
   {
-    this->iStyle = styleBase;
+    this->currentIStyle = styleBase;
   }
 
-  this->iStyle->AddObserver(vtkCommand::EnterEvent, this->EventCallbackCommand, 1.0);
+  this->currentIStyle->AddObserver(vtkCommand::EnterEvent, this->EventCallbackCommand, 1.0);
 
-  this->iStyle->AddObserver(vtkCommand::LeaveEvent, this->EventCallbackCommand, 1.0);
+  this->currentIStyle->AddObserver(vtkCommand::LeaveEvent, this->EventCallbackCommand, 1.0);
 
-  this->iStyle->AddObserver(vtkCommand::MouseMoveEvent, this->EventCallbackCommand, 1.0);
+  this->currentIStyle->AddObserver(vtkCommand::MouseMoveEvent, this->EventCallbackCommand, 1.0);
 
-  this->iStyle->AddObserver(vtkCommand::LeftButtonPressEvent, this->EventCallbackCommand, 1.0);
+  this->currentIStyle->AddObserver(vtkCommand::LeftButtonPressEvent, this->EventCallbackCommand, 1.0);
 
-  this->iStyle->AddObserver(vtkCommand::LeftButtonReleaseEvent, this->EventCallbackCommand, 1.0);
+  this->currentIStyle->AddObserver(vtkCommand::LeftButtonReleaseEvent, this->EventCallbackCommand, 1.0);
 
-  this->iStyle->AddObserver(
+  this->currentIStyle->AddObserver(
     vtkCommand::LeftButtonDoubleClickEvent, this->EventCallbackCommand, 1.0);
 
-  this->iStyle->AddObserver(vtkCommand::MiddleButtonPressEvent, this->EventCallbackCommand, 1.0);
+  this->currentIStyle->AddObserver(vtkCommand::MiddleButtonPressEvent, this->EventCallbackCommand, 1.0);
 
-  this->iStyle->AddObserver(vtkCommand::MiddleButtonReleaseEvent, this->EventCallbackCommand, 1.0);
+  this->currentIStyle->AddObserver(vtkCommand::MiddleButtonReleaseEvent, this->EventCallbackCommand, 1.0);
 
-  this->iStyle->AddObserver(
+  this->currentIStyle->AddObserver(
     vtkCommand::MiddleButtonDoubleClickEvent, this->EventCallbackCommand, 1.0);
 
-  this->iStyle->AddObserver(vtkCommand::RightButtonPressEvent, this->EventCallbackCommand, 1.0);
+  this->currentIStyle->AddObserver(vtkCommand::RightButtonPressEvent, this->EventCallbackCommand, 1.0);
 
-  this->iStyle->AddObserver(vtkCommand::RightButtonReleaseEvent, this->EventCallbackCommand, 1.0);
+  this->currentIStyle->AddObserver(vtkCommand::RightButtonReleaseEvent, this->EventCallbackCommand, 1.0);
 
-  this->iStyle->AddObserver(
+  this->currentIStyle->AddObserver(
     vtkCommand::RightButtonDoubleClickEvent, this->EventCallbackCommand, 1.0);
 
-  this->iStyle->AddObserver(vtkCommand::MouseWheelForwardEvent, this->EventCallbackCommand, 1.0);
+  this->currentIStyle->AddObserver(vtkCommand::MouseWheelForwardEvent, this->EventCallbackCommand, 1.0);
 
-  this->iStyle->AddObserver(vtkCommand::MouseWheelBackwardEvent, this->EventCallbackCommand, 1.0);
+  this->currentIStyle->AddObserver(vtkCommand::MouseWheelBackwardEvent, this->EventCallbackCommand, 1.0);
 
-  this->iStyle->AddObserver(vtkCommand::MouseWheelLeftEvent, this->EventCallbackCommand, 1.0);
+  this->currentIStyle->AddObserver(vtkCommand::MouseWheelLeftEvent, this->EventCallbackCommand, 1.0);
 
-  this->iStyle->AddObserver(vtkCommand::MouseWheelRightEvent, this->EventCallbackCommand, 1.0);
+  this->currentIStyle->AddObserver(vtkCommand::MouseWheelRightEvent, this->EventCallbackCommand, 1.0);
 
-  this->iStyle->AddObserver(vtkCommand::ExposeEvent, this->EventCallbackCommand, 1.0);
+  this->currentIStyle->AddObserver(vtkCommand::ExposeEvent, this->EventCallbackCommand, 1.0);
 
-  this->iStyle->AddObserver(vtkCommand::ConfigureEvent, this->EventCallbackCommand, 1.0);
+  this->currentIStyle->AddObserver(vtkCommand::ConfigureEvent, this->EventCallbackCommand, 1.0);
 
-  this->iStyle->AddObserver(vtkCommand::TimerEvent, this->EventCallbackCommand, 1.0);
+  this->currentIStyle->AddObserver(vtkCommand::TimerEvent, this->EventCallbackCommand, 1.0);
 
-  this->iStyle->AddObserver(vtkCommand::KeyPressEvent, this->EventCallbackCommand, 1.0);
+  this->currentIStyle->AddObserver(vtkCommand::KeyPressEvent, this->EventCallbackCommand, 1.0);
 
-  this->iStyle->AddObserver(vtkCommand::KeyReleaseEvent, this->EventCallbackCommand, 1.0);
+  this->currentIStyle->AddObserver(vtkCommand::KeyReleaseEvent, this->EventCallbackCommand, 1.0);
 
-  this->iStyle->AddObserver(vtkCommand::CharEvent, this->EventCallbackCommand, 1.0);
+  this->currentIStyle->AddObserver(vtkCommand::CharEvent, this->EventCallbackCommand, 1.0);
 }
 
 void vtkDearImGUIInjector::UninstallEventCallback()
 {
-  this->iStyle->RemoveObserver(this->EventCallbackCommand);
+  this->currentIStyle->RemoveObserver(this->EventCallbackCommand);
 }
 
 void vtkDearImGUIInjector::UpdateMousePosAndButtons(vtkRenderWindowInteractor* interactor)
@@ -363,6 +372,23 @@ void vtkDearImGUIInjector::UpdateMouseCursor(vtkRenderWindow* renWin)
     renWin->ShowCursor();
   }
 }
+#ifdef __EMSCRIPTEN__
+namespace
+{
+
+void mainLoopCallback(void* arg)
+{
+  vtkDearImGUIInjector* self = static_cast<vtkDearImGUIInjector*>(arg);
+  vtkRenderWindowInteractor* interactor = self->Interactor;
+  vtkRenderWindow* renWin = interactor->GetRenderWindow();
+
+  self->InstallEventCallback(interactor);
+  interactor->ProcessEvents();
+  self->UninstallEventCallback();
+  renWin->Render();
+}
+}
+#endif
 
 void vtkDearImGUIInjector::PumpEv(vtkObject* caller, unsigned long eid, void* callData)
 {
@@ -372,6 +398,9 @@ void vtkDearImGUIInjector::PumpEv(vtkObject* caller, unsigned long eid, void* ca
   interactor->Enable();
   interactor->Initialize();
 
+#ifdef __EMSCRIPTEN__
+  emscripten_set_main_loop_arg(&mainLoopCallback, (void*)this, 0, 1);
+#else
   while (!interactor->GetDone())
   {
     this->InstallEventCallback(interactor);
@@ -379,6 +408,7 @@ void vtkDearImGUIInjector::PumpEv(vtkObject* caller, unsigned long eid, void* ca
     this->UninstallEventCallback();
     renWin->Render();
   }
+#endif
 }
 
 void vtkDearImGUIInjector::DispatchEv(
