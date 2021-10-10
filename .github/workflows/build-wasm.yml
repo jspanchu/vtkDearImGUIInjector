@@ -11,7 +11,7 @@ jobs:
     runs-on: ubuntu-latest
     container: 
       image: jspanchu/vtk-wasm-target:latest
-      options: -v ${{ github.workspace }}:/project/src
+      options: -v ${{ github.workspace }}:/project/src --name wasm_tgt
     steps:
     - uses: actions/checkout@v2
       with:
@@ -27,14 +27,15 @@ jobs:
     - name: Build
       run:
         cmake --build /project/build
-    - name: Move binaries into project.
+    - name: Copy binaries into project.
       run: |
-        mv /project/build/*.js ${{ github.workspace }}
-        mv /project/build/*.wasm ${{ github.workspace }}
+        git status
+        docker cp wasm_tgt:/project/build/imgui_vtk_app.js .
+        docker cp wasm_tgt:/project/build/imgui_vtk_app.wasm .
     - name: Commit JS + WASM
       run: |
           git config user.name Jaswant Panchumarti
           git config user.email jspanchu@gmail.com
-          git add  ${{ github.workspace }}/imgui_vtk_app.js  ${{ github.workspace }}/imgui_vtk_app.wasm
+          git add imgui_vtk_app.js imgui_vtk_app.wasm
           git commit -m "Deploy WebAssembly binaries"
           git push origin HEAD:master
