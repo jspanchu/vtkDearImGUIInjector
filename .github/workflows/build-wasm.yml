@@ -38,4 +38,4 @@ jobs:
           git config user.email jspanchu@gmail.com
           git add imgui_vtk_app.js imgui_vtk_app.wasm
           git commit -m "Deploy WebAssembly binaries"
-          git push origin HEAD:master
+          git push origin HEAD:main
