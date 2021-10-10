@@ -12,17 +12,22 @@ jobs:
     runs-on: ubuntu-latest
     container: 
       image: jspanchu/vtk-wasm-target:latest
-      options: -v ${{ github.workspace }}:/project/src -v ${{ github.workspace }}:/project/build
+      options: -v ${{ github.workspace }}:/project/src
     steps:
     - uses: actions/checkout@main
+    - name: Pull & update submodules recursively
+      run: |
+        git submodule update --init --recursive
+        git submodule update --recursive --remote
     - name: Build the WebAssembly binary in the jspanchu/vtk-wasm-target container
-      run:
-        emcmake cmake -GNinja -S /project/src -B /project/build -DCMAKE_BUILD_TYPE=Release -DBUILD_SHARED_LIBS=OFF && \
-        cmake --build /project/build && \
+      run: |
+        mkdir /project/build
+        emcmake cmake -GNinja -S /project/src -B /project/build -DCMAKE_BUILD_TYPE=Release -DBUILD_SHARED_LIBS=OFF
+        cmake --build /project/build
     - name: Move binaries into project.
-      run:
-        mv /project/build/*.js /project/src/ && \
-        mv /project/build/*.wasm /project/src
+      run: |
+        mv /project/build/*.js /project/src/
+        mv /project/build/*.wasm /project/src/
     - name: switching from HTTPS to SSH
       run: git remote set-url origin ${{ secrets.ssh }}
     - name: check for changes
