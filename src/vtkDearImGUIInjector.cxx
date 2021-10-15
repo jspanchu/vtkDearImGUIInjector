@@ -150,6 +150,7 @@ void vtkDearImGUIInjector::TearDown(vtkObject* caller, unsigned long eid, void* 
     interactor->SetDone(true);
   }
   ImGui_ImplOpenGL3_Shutdown();
+  vtkDebugMacro(<< "tear down");
 }
 
 void vtkDearImGUIInjector::BeginDearImGUIOverlay(
@@ -188,6 +189,8 @@ void vtkDearImGUIInjector::BeginDearImGUIOverlay(
   auto interactor = renWin->GetInteractor();
   this->UpdateMousePosAndButtons(interactor);
   this->UpdateMouseCursor(renWin);
+  
+  vtkDebugMacro(<< "new frame begin");
 
   // Begin ImGUI drawing
   ImGui_ImplOpenGL3_NewFrame();
@@ -232,6 +235,8 @@ void vtkDearImGUIInjector::BeginDearImGUIOverlay(
     ImGui::ShowAboutWindow(&this->ShowAppAbout);
   }
   this->InvokeEvent(ImGUIDrawEvent);
+  
+  vtkDebugMacro(<< "new frame end");
 }
 
 void vtkDearImGUIInjector::RenderDearImGUIOverlay(
@@ -385,7 +390,7 @@ void mainLoopCallback(void* arg)
   self->InstallEventCallback(interactor);
   interactor->ProcessEvents();
   self->UninstallEventCallback();
-  renWin->Render();
+  if (!interactor->GetDone()) renWin->Render();
 }
 }
 #endif
@@ -406,7 +411,8 @@ void vtkDearImGUIInjector::PumpEv(vtkObject* caller, unsigned long eid, void* ca
     this->InstallEventCallback(interactor);
     interactor->ProcessEvents();
     this->UninstallEventCallback();
-    renWin->Render();
+    if (!interactor->GetDone()) renWin->Render();
+    vtkDebugMacro(<< "PumpEv: Window Render");
   }
 #endif
 }
