@@ -7,7 +7,8 @@ on:
     branches: [ main ]
 
 jobs:
-  prepare_web_binary:
+  build:
+    name: Compile C++ -> JS + WASM
     runs-on: ubuntu-latest
     container: 
       image: jspanchu/vtk-wasm-target:latest
@@ -27,16 +28,33 @@ jobs:
     - name: Build
       run:
         cmake --build /project/build
-    - name: Copy binaries into project.
+    - name: Create tarballs.
       run: |
-        mv /project/build/imgui_vtk_app.js . && \
-        mv /project/build/imgui_vtk_app.wasm . && \
-        git status
-    - name: Commit JS + WASM
-      run: |
-          git config user.name Jaswant Panchumarti
-          git config user.email jspanchu@gmail.com
-          git checkout gh-pages
-          git add imgui_vtk_app.js imgui_vtk_app.wasm
-          git commit -m "Deploy WebAssembly binaries"
-          git push origin HEAD:gh-pages
+        cd /project/build
+        tar -cvf web_content.tar imgui_vtk_app.js imgui_vtk_app.wasm index.html
+    - name: Upload
+      uses: actions/upload-artifact@v2
+      with:
+        name: web_content
+        path: /project/build/web_content.tar
+  deploy:
+    name: Deploy JS + WASM
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+        with:
+          ref: gh-pages
+      - name: Download
+        uses: actions/download-artifact@v2
+        with:
+          name: web_content
+      - name: Commit
+        shell: bash
+        run: |
+            tar -xvf web_content.tar
+            git config user.name Jaswant Panchumarti
+            git config user.email jspanchu@gmail.com
+            git add imgui_vtk_app.js imgui_vtk_app.wasm index.html
+            git commit -m "Deploy WebAssembly binaries"
+            git push origin HEAD:gh-pages
