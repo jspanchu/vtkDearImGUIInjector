@@ -4,7 +4,7 @@
     <meta charset="utf-8"/>
   </head>
   <body>
-    <canvas id="canvas" style="position: absolute; left: 0; top: 0;"></canvas>
+    <canvas id="canvas" style="position: absolute; left: 0; top: 0;" tabindex="0"></canvas>
     <script type="text/javascript" src="imgui_vtk_app.js"></script>
     <script type='text/javascript'>
       var Module = {
@@ -28,6 +28,9 @@
       // Use the export name to instantiate the app
       var app = vtkApp(Module);
       console.log('App created');
+      canvas.setAttribute('tabindex', '0'); // needed to put focus on the canvas
+      canvas.addEventListener('click', () => canvas.focus());
+      canvas.focus();
     </script>
   </body>
 </html>
