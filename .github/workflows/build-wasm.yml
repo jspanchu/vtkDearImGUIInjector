@@ -7,7 +7,7 @@ on:
     branches: [ main ]
 
 jobs:
-  build:
+  prepare_web_binary:
     runs-on: ubuntu-latest
     container: 
       image: jspanchu/vtk-wasm-target:latest
@@ -36,6 +36,7 @@ jobs:
       run: |
           git config user.name Jaswant Panchumarti
           git config user.email jspanchu@gmail.com
+          git checkout gh-pages
           git add imgui_vtk_app.js imgui_vtk_app.wasm
           git commit -m "Deploy WebAssembly binaries"
-          git push origin HEAD:main
+          git push origin HEAD:gh-pages
