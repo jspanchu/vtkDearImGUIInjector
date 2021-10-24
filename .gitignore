@@ -35,3 +35,5 @@
 out/
 .vs/
 *.json
+.cache
+build
