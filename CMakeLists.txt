@@ -39,8 +39,6 @@ target_sources(${PROJECT_NAME} PRIVATE
 )
 if (EMSCRIPTEN)
   target_compile_definitions(${PROJECT_NAME} PUBLIC IMGUI_IMPL_OPENGL_ES3)
-else()
-  target_compile_definitions(${PROJECT_NAME} PUBLIC IMGUI_IMPL_OPENGL_LOADER_CUSTOM="vtk_glew.h")
 endif()
 target_include_directories(${PROJECT_NAME} PUBLIC "include")
 target_include_directories(${PROJECT_NAME} PUBLIC "imgui")
