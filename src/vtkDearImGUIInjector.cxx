@@ -1,6 +1,3 @@
-#include <cstring>
-#include <iostream>
-#include <ctime>
 #include <chrono>
 #include <string>
 #include <unordered_map>
@@ -19,6 +16,20 @@
 #include "backends/imgui_impl_opengl3.h"
 #include "imgui.h"
 
+#if __has_include(<vtkXRenderWindowInteractor.h>)
+  #include <X11/Xlib.h>
+  #define USES_X11
+#elif __has_include(<vtkSDL2RenderWindowInteractor.h>)
+  #include <SDL2/SDL.h>
+  #define USES_SDL2
+  #pragma warning "Unsupported platform! Keyboard mapping not setup"
+#elif __has_include(<vtkWin32RenderWindowInteractor.h>)
+  #define USES_WIN32
+  #pragma warning "Unsupported platform! Keyboard mapping not setup"
+#else
+  #pragma warning "Unsupported platform! Keyboard mapping not setup"
+#endif
+
 #ifdef __EMSCRIPTEN__
 #include "emscripten.h"
 #endif
@@ -27,12 +38,6 @@ vtkStandardNewMacro(vtkDearImGUIInjector);
 
 namespace
 {
-std::unordered_map<std::string, int> keySymToCode(
-  { { "Tab", 0 }, { "LeftArrow", 1 }, { "RightArrow", 2 }, { "UpArrow", 3 }, { "DownArrow", 4 },
-    { "PageUp", 5 }, { "PageDown", 6 }, { "Home", 7 }, { "End", 8 }, { "Insert", 9 },
-    { "Delete", 10 }, { "BackSpace", 11 }, { "Space", 12 }, { "Enter", 13 }, { "Escape", 14 },
-    { "KeyPadEnter", 15 }, { "A", 16 }, { "C", 17 }, { "V", 18 }, { "X", 19 }, { "Y", 20 },
-    { "Z", 21 }, { "a", 16 }, { "c", 17 }, { "v", 18 }, { "x", 19 }, { "y", 20 }, { "z", 21 } });
 
 const std::unordered_map<int, int> imguiToVtkCursors(
   { { ImGuiMouseCursor_None, VTK_CURSOR_DEFAULT }, { ImGuiMouseCursor_Arrow, VTK_CURSOR_ARROW },
@@ -107,34 +112,35 @@ bool vtkDearImGUIInjector::SetUp(vtkRenderWindow* renWin)
 
   ImGuiIO& io = ImGui::GetIO();
   (void)io;
-  io.MouseDrawCursor = true;
   io.BackendFlags |= ImGuiBackendFlags_HasMouseCursors; // We can honor GetMouseCursor() values
                                                         // (optional)
 
   // Keyboard mapping. Dear ImGui will use those indices to peek into the
   // io.KeysDown[] array.
-  io.KeyMap[ImGuiKey_Tab] = keySymToCode["Tab"];
-  io.KeyMap[ImGuiKey_LeftArrow] = keySymToCode["LeftArrow"];
-  io.KeyMap[ImGuiKey_RightArrow] = keySymToCode["RightArrow"];
-  io.KeyMap[ImGuiKey_UpArrow] = keySymToCode["UpArrow"];
-  io.KeyMap[ImGuiKey_DownArrow] = keySymToCode["DownArrow"];
-  io.KeyMap[ImGuiKey_PageUp] = keySymToCode["PageUp"];
-  io.KeyMap[ImGuiKey_PageDown] = keySymToCode["PageDown"];
-  io.KeyMap[ImGuiKey_Home] = keySymToCode["Home"];
-  io.KeyMap[ImGuiKey_End] = keySymToCode["End"];
-  io.KeyMap[ImGuiKey_Insert] = keySymToCode["Insert"];
-  io.KeyMap[ImGuiKey_Delete] = keySymToCode["Delete"];
-  io.KeyMap[ImGuiKey_Backspace] = keySymToCode["BackSpace"];
-  io.KeyMap[ImGuiKey_Space] = keySymToCode["Space"];
-  io.KeyMap[ImGuiKey_Enter] = keySymToCode["Enter"];
-  io.KeyMap[ImGuiKey_Escape] = keySymToCode["Escape"];
-  io.KeyMap[ImGuiKey_KeyPadEnter] = keySymToCode["KeyPadEnter"];
-  io.KeyMap[ImGuiKey_A] = keySymToCode["a"];
-  io.KeyMap[ImGuiKey_C] = keySymToCode["c"];
-  io.KeyMap[ImGuiKey_V] = keySymToCode["v"];
-  io.KeyMap[ImGuiKey_X] = keySymToCode["x"];
-  io.KeyMap[ImGuiKey_Y] = keySymToCode["y"];
-  io.KeyMap[ImGuiKey_Z] = keySymToCode["z"];
+#ifdef USES_X11
+  io.KeyMap[ImGuiKey_Tab] = XStringToKeysym("Tab") & 0xff;
+  io.KeyMap[ImGuiKey_LeftArrow] = XStringToKeysym("Left") & 0xff;
+  io.KeyMap[ImGuiKey_RightArrow] = XStringToKeysym("Right") & 0xff;
+  io.KeyMap[ImGuiKey_UpArrow] = XStringToKeysym("Up") & 0xff;
+  io.KeyMap[ImGuiKey_DownArrow] = XStringToKeysym("Down") & 0xff;
+  io.KeyMap[ImGuiKey_PageUp] = XStringToKeysym("Page_Up") & 0xff;
+  io.KeyMap[ImGuiKey_PageDown] = XStringToKeysym("Page_Down") & 0xff;
+  io.KeyMap[ImGuiKey_Home] = XStringToKeysym("Home") & 0xff;
+  io.KeyMap[ImGuiKey_End] = XStringToKeysym("End") & 0xff;
+  io.KeyMap[ImGuiKey_Insert] = XStringToKeysym("Insert") & 0xff;
+  io.KeyMap[ImGuiKey_Delete] = XStringToKeysym("Delete") & 0xff;
+  io.KeyMap[ImGuiKey_Backspace] = XStringToKeysym("BackSpace") & 0xff;
+  io.KeyMap[ImGuiKey_Space] = XStringToKeysym("Space") & 0xff;
+  io.KeyMap[ImGuiKey_Enter] = XStringToKeysym("Return") & 0xff;
+  io.KeyMap[ImGuiKey_Escape] = XStringToKeysym("Escape") & 0xff;
+  io.KeyMap[ImGuiKey_KeyPadEnter] = XStringToKeysym("KP_Enter") & 0xff;
+  io.KeyMap[ImGuiKey_A] = XStringToKeysym("A") & 0xff;
+  io.KeyMap[ImGuiKey_C] = XStringToKeysym("C") & 0xff;
+  io.KeyMap[ImGuiKey_V] = XStringToKeysym("V") & 0xff;
+  io.KeyMap[ImGuiKey_X] = XStringToKeysym("X") & 0xff;
+  io.KeyMap[ImGuiKey_Y] = XStringToKeysym("Y") & 0xff;
+  io.KeyMap[ImGuiKey_Z] = XStringToKeysym("Z") & 0xff;
+#endif
 #if defined(_WIN32)
   io.BackendPlatformName = renWin->GetClassName();
   io.ImeWindowHandle = renWin->GetGenericWindowId();
@@ -183,14 +189,16 @@ void vtkDearImGUIInjector::BeginDearImGUIOverlay(
 
   // Increment time for DearImGUI
   using namespace std::chrono;
-  auto currentTime = double(duration_cast<milliseconds>(high_resolution_clock::now().time_since_epoch()).count()) / 1000.f;
-  io.DeltaTime =  this->Time > 0.0 ? (currentTime - this->Time) : (1.0 / 60.0);
+  auto currentTime =
+    double(duration_cast<milliseconds>(high_resolution_clock::now().time_since_epoch()).count()) /
+    1000.;
+  io.DeltaTime = this->Time > 0.0 ? (currentTime - this->Time) : (1. / 60.);
   this->Time = currentTime;
 
   auto interactor = renWin->GetInteractor();
   this->UpdateMousePosAndButtons(interactor);
   this->UpdateMouseCursor(renWin);
-  
+
   vtkDebugMacro(<< "new frame begin");
 
   // Begin ImGUI drawing
@@ -237,7 +245,7 @@ void vtkDearImGUIInjector::BeginDearImGUIOverlay(
     ImGui::ShowAboutWindow(&this->ShowAppAbout);
   }
   this->InvokeEvent(ImGUIDrawEvent);
-  
+
   vtkDebugMacro(<< "new frame end");
 }
 
@@ -291,34 +299,44 @@ void vtkDearImGUIInjector::InstallEventCallback(vtkRenderWindowInteractor* inter
 
   this->currentIStyle->AddObserver(vtkCommand::MouseMoveEvent, this->EventCallbackCommand, 1.0);
 
-  this->currentIStyle->AddObserver(vtkCommand::LeftButtonPressEvent, this->EventCallbackCommand, 1.0);
+  this->currentIStyle->AddObserver(
+    vtkCommand::LeftButtonPressEvent, this->EventCallbackCommand, 1.0);
 
-  this->currentIStyle->AddObserver(vtkCommand::LeftButtonReleaseEvent, this->EventCallbackCommand, 1.0);
+  this->currentIStyle->AddObserver(
+    vtkCommand::LeftButtonReleaseEvent, this->EventCallbackCommand, 1.0);
 
   this->currentIStyle->AddObserver(
     vtkCommand::LeftButtonDoubleClickEvent, this->EventCallbackCommand, 1.0);
 
-  this->currentIStyle->AddObserver(vtkCommand::MiddleButtonPressEvent, this->EventCallbackCommand, 1.0);
+  this->currentIStyle->AddObserver(
+    vtkCommand::MiddleButtonPressEvent, this->EventCallbackCommand, 1.0);
 
-  this->currentIStyle->AddObserver(vtkCommand::MiddleButtonReleaseEvent, this->EventCallbackCommand, 1.0);
+  this->currentIStyle->AddObserver(
+    vtkCommand::MiddleButtonReleaseEvent, this->EventCallbackCommand, 1.0);
 
   this->currentIStyle->AddObserver(
     vtkCommand::MiddleButtonDoubleClickEvent, this->EventCallbackCommand, 1.0);
 
-  this->currentIStyle->AddObserver(vtkCommand::RightButtonPressEvent, this->EventCallbackCommand, 1.0);
+  this->currentIStyle->AddObserver(
+    vtkCommand::RightButtonPressEvent, this->EventCallbackCommand, 1.0);
 
-  this->currentIStyle->AddObserver(vtkCommand::RightButtonReleaseEvent, this->EventCallbackCommand, 1.0);
+  this->currentIStyle->AddObserver(
+    vtkCommand::RightButtonReleaseEvent, this->EventCallbackCommand, 1.0);
 
   this->currentIStyle->AddObserver(
     vtkCommand::RightButtonDoubleClickEvent, this->EventCallbackCommand, 1.0);
 
-  this->currentIStyle->AddObserver(vtkCommand::MouseWheelForwardEvent, this->EventCallbackCommand, 1.0);
+  this->currentIStyle->AddObserver(
+    vtkCommand::MouseWheelForwardEvent, this->EventCallbackCommand, 1.0);
 
-  this->currentIStyle->AddObserver(vtkCommand::MouseWheelBackwardEvent, this->EventCallbackCommand, 1.0);
+  this->currentIStyle->AddObserver(
+    vtkCommand::MouseWheelBackwardEvent, this->EventCallbackCommand, 1.0);
 
-  this->currentIStyle->AddObserver(vtkCommand::MouseWheelLeftEvent, this->EventCallbackCommand, 1.0);
+  this->currentIStyle->AddObserver(
+    vtkCommand::MouseWheelLeftEvent, this->EventCallbackCommand, 1.0);
 
-  this->currentIStyle->AddObserver(vtkCommand::MouseWheelRightEvent, this->EventCallbackCommand, 1.0);
+  this->currentIStyle->AddObserver(
+    vtkCommand::MouseWheelRightEvent, this->EventCallbackCommand, 1.0);
 
   this->currentIStyle->AddObserver(vtkCommand::ExposeEvent, this->EventCallbackCommand, 1.0);
 
@@ -392,7 +410,8 @@ void mainLoopCallback(void* arg)
   self->InstallEventCallback(interactor);
   interactor->ProcessEvents();
   self->UninstallEventCallback();
-  if (!interactor->GetDone()) renWin->Render();
+  if (!interactor->GetDone())
+    renWin->Render();
 }
 }
 #endif
@@ -413,7 +432,8 @@ void vtkDearImGUIInjector::PumpEv(vtkObject* caller, unsigned long eid, void* ca
     this->InstallEventCallback(interactor);
     interactor->ProcessEvents();
     this->UninstallEventCallback();
-    if (!interactor->GetDone()) renWin->Render();
+    if (!interactor->GetDone())
+      renWin->Render();
     vtkDebugMacro(<< "PumpEv: Window Render");
   }
 #endif
@@ -425,9 +445,6 @@ void vtkDearImGUIInjector::DispatchEv(
   // auto interactor = vtkRenderWindowInteractor::SafeDownCast(caller);
   auto iStyle = vtkInteractorStyle::SafeDownCast(caller);
   auto self = reinterpret_cast<vtkDearImGUIInjector*>(clientData);
-
-  std::string keySym = "";
-  int keyCode = -1;
 
   ImGuiIO& io = ImGui::GetIO();
   (void)io;
@@ -585,55 +602,50 @@ void vtkDearImGUIInjector::DispatchEv(
       iStyle->OnTimer();
       break;
     }
-    case vtkCommand::KeyPressEvent:
-    {
-      keySym = iStyle->GetInteractor()->GetKeySym();
-      if (keySymToCode.find(keySym) != keySymToCode.end())
-      {
-        keyCode = keySymToCode[keySym];
-      }
-      if (keyCode >= 0)
-      {
-        keyCode = keySymToCode[keySym];
-        io.KeysDown[keyCode] = true;
-        io.KeySuper = (keySym == "Win_L") || (keySym == "Win_R") || (keySym == "Meta_L") ||
-          (keySym == "Meta_R");
-      }
-
-      if (!io.WantCaptureKeyboard || (io.WantCaptureKeyboard && self->GrabKeyboard))
-      {
-        iStyle->OnKeyDown();
-        iStyle->OnKeyPress();
-      }
-      break;
-    }
-    case vtkCommand::KeyReleaseEvent:
-    {
-      keySym = iStyle->GetInteractor()->GetKeySym();
-      if (keySymToCode.find(keySym) != keySymToCode.end())
-      {
-        keyCode = keySymToCode[keySym];
-      }
-      if (keyCode >= 0)
-      {
-        io.KeysDown[keyCode] = false;
-        io.KeySuper = false;
-      }
-
-      if (!io.WantCaptureKeyboard || (io.WantCaptureKeyboard && self->GrabKeyboard))
-      {
-        iStyle->OnKeyUp();
-        iStyle->OnKeyRelease();
-      }
-      break;
-    }
     case vtkCommand::CharEvent:
     {
-      io.AddInputCharacter(iStyle->GetInteractor()->GetKeyCode());
+      const char* keySym = iStyle->GetInteractor()->GetKeySym();
+      const unsigned int keyCode = iStyle->GetInteractor()->GetKeyCode();
+      io.AddInputCharacter(keyCode);
 
       if (!io.WantCaptureKeyboard || (io.WantCaptureKeyboard && self->GrabKeyboard))
       {
         iStyle->OnChar();
+      }
+      break;
+    }
+    case vtkCommand::KeyPressEvent:
+    case vtkCommand::KeyReleaseEvent:
+    {
+      bool down = eid == vtkCommand::KeyPressEvent;
+      std::string keySym = iStyle->GetInteractor()->GetKeySym();
+      const int keyCode = iStyle->GetInteractor()->GetKeyCode();
+      if (keyCode >= 0 && keyCode < IM_ARRAYSIZE(io.KeysDown))
+      {
+        io.KeysDown[keyCode] = (down);
+      }
+      io.KeySuper =
+        (((keySym == "Win_L") || (keySym == "Win_R") || (keySym == "Super_L") || (keySym == "Super_R")) && down);
+      
+      // Do not rely on VTK giving correct info for ctrl, shift, alt keys on X11.
+      // So, check for literal in key sym string
+      const auto& nul = std::string::npos;
+      io.KeyCtrl = ((keySym.find("Control") != nul) || (keySym.find("control") != nul)) && down;
+      io.KeyShift = ((keySym.find("Shift") != nul) || (keySym.find("shift") != nul)) && down;
+      io.KeyAlt = ((keySym.find("Alt") != nul) || (keySym.find("alt") != nul)) && down;
+
+      if (!io.WantCaptureKeyboard || (io.WantCaptureKeyboard && self->GrabKeyboard))
+      {
+        if (down)
+        {
+          iStyle->OnKeyDown();
+          iStyle->OnKeyPress();
+        }
+        else
+        {
+          iStyle->OnKeyUp();
+          iStyle->OnKeyRelease();
+        }
       }
       break;
     }
