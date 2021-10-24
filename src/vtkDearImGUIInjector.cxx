@@ -1,11 +1,11 @@
 #include <cstring>
 #include <iostream>
-#include <vtkCommand.h>
-#include <vtkDearImGUIInjector.h>
-
+#include <ctime>
 #include <chrono>
 #include <string>
 #include <unordered_map>
+
+#include <vtkDearImGUIInjector.h>
 
 #include <vtkCallbackCommand.h>
 #include <vtkInteractorStyleSwitch.h>
@@ -182,8 +182,8 @@ void vtkDearImGUIInjector::BeginDearImGUIOverlay(
 
   // Increment time for DearImGUI
   using namespace std::chrono;
-  auto currentTime = float(duration_cast<milliseconds>(high_resolution_clock::now().time_since_epoch()).count()) / 1000.f;
-  io.DeltaTime =  this->Time > 0.0 ? (currentTime - this->Time) : (1.0f / 60.0f);
+  auto currentTime = double(duration_cast<milliseconds>(high_resolution_clock::now().time_since_epoch()).count()) / 1000.f;
+  io.DeltaTime =  this->Time > 0.0 ? (currentTime - this->Time) : (1.0 / 60.0);
   this->Time = currentTime;
 
   auto interactor = renWin->GetInteractor();

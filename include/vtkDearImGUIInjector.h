@@ -50,7 +50,7 @@ protected:
   vtkNew<vtkCallbackCommand> EventCallbackCommand;
   vtkWeakPointer<vtkInteractorStyle> currentIStyle;
 
-  float Time = 0;
+  double Time = 0;
   bool MouseJustPressed[3] = { false, false, false };
   bool FinishedSetup = false;
   bool Focused = true;
