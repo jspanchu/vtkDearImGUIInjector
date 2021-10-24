@@ -15,8 +15,10 @@
 #include "vtkPolyData.h"
 #include "vtkPolyDataMapper.h"
 #include "vtkRenderer.h"
+#ifdef __EMSCRIPTEN__
 #include "vtkSDL2OpenGLRenderWindow.h"
 #include "vtkSDL2RenderWindowInteractor.h"
+#endif
 #include "vtkRenderWindow.h"
 #include "vtkRenderWindowInteractor.h"
 #include "vtkDearImGUIInjector.h"
