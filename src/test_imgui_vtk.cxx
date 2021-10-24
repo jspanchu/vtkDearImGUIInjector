@@ -42,10 +42,6 @@ int main(int argc, char* argv[])
   renderWindow->AddRenderer(renderer);
   renderWindowInteractor->SetRenderWindow(renderWindow);
 
-  // vtkNew<vtkInteractorStyleTrackballCamera> style;
-  // renderWindowInteractor->SetInteractorStyle(style);
-  // style->SetDefaultRenderer(renderer);
-
   // Create pipeline
   vtkNew<vtkConeSource> coneSource;
   coneSource->Update();
