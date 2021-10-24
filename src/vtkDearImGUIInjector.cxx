@@ -107,6 +107,7 @@ bool vtkDearImGUIInjector::SetUp(vtkRenderWindow* renWin)
 
   ImGuiIO& io = ImGui::GetIO();
   (void)io;
+  io.MouseDrawCursor = true;
   io.BackendFlags |= ImGuiBackendFlags_HasMouseCursors; // We can honor GetMouseCursor() values
                                                         // (optional)
 
@@ -202,6 +203,7 @@ void vtkDearImGUIInjector::BeginDearImGUIOverlay(
     {
       ImGui::MenuItem("Grab Mouse", NULL, &this->GrabMouse);
       ImGui::MenuItem("Grab Keyboard", NULL, &this->GrabKeyboard);
+      ImGui::MenuItem("Hardware Cursor", NULL, &io.MouseDrawCursor);
       ImGui::EndMenu();
     }
     if (ImGui::BeginMenu("Tools"))
