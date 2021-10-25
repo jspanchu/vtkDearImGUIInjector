@@ -8,6 +8,8 @@
      PURPOSE.  See the above copyright notice for more information.
 =========================================================================*/
 
+#include "vtkDearImGUIInjector.h"
+
 #include "vtkActor.h"
 #include "vtkConeSource.h"
 #include "vtkInteractorStyleTrackballCamera.h"
@@ -15,13 +17,12 @@
 #include "vtkPolyData.h"
 #include "vtkPolyDataMapper.h"
 #include "vtkRenderer.h"
-#ifdef __EMSCRIPTEN__
+#if defined(USES_SDL2)
 #include "vtkSDL2OpenGLRenderWindow.h"
 #include "vtkSDL2RenderWindowInteractor.h"
 #endif
 #include "vtkRenderWindow.h"
 #include "vtkRenderWindowInteractor.h"
-#include "vtkDearImGUIInjector.h"
 
 //------------------------------------------------------------------------------
 // Main
@@ -31,7 +32,7 @@ int main(int argc, char* argv[])
 {
   // Create a renderer, render window, and interactor
   vtkNew<vtkRenderer> renderer;
-#ifdef __EMSCRIPTEN__
+#ifdef USES_SDL2
   vtkNew<vtkSDL2OpenGLRenderWindow> renderWindow;
   vtkNew<vtkSDL2RenderWindowInteractor> renderWindowInteractor;
 #else

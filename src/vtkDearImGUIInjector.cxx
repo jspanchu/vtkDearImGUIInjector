@@ -1,4 +1,5 @@
 #include <chrono>
+#include <iostream>
 #include <string>
 #include <unordered_map>
 
@@ -15,20 +16,6 @@
 
 #include "backends/imgui_impl_opengl3.h"
 #include "imgui.h"
-
-#if __has_include(<vtkXRenderWindowInteractor.h>)
-  #include <X11/Xlib.h>
-  #define USES_X11
-#elif __has_include(<vtkSDL2RenderWindowInteractor.h>)
-  #include <SDL2/SDL.h>
-  #define USES_SDL2
-  #pragma warning "Unsupported platform! Keyboard mapping not setup"
-#elif __has_include(<vtkWin32RenderWindowInteractor.h>)
-  #define USES_WIN32
-  #pragma warning "Unsupported platform! Keyboard mapping not setup"
-#else
-  #pragma warning "Unsupported platform! Keyboard mapping not setup"
-#endif
 
 #ifdef __EMSCRIPTEN__
 #include "emscripten.h"
@@ -140,6 +127,29 @@ bool vtkDearImGUIInjector::SetUp(vtkRenderWindow* renWin)
   io.KeyMap[ImGuiKey_X] = XStringToKeysym("X") & 0xff;
   io.KeyMap[ImGuiKey_Y] = XStringToKeysym("Y") & 0xff;
   io.KeyMap[ImGuiKey_Z] = XStringToKeysym("Z") & 0xff;
+#elif USES_SDL2
+  io.KeyMap[ImGuiKey_Tab] = SDL_SCANCODE_TAB;
+  io.KeyMap[ImGuiKey_LeftArrow] = SDL_SCANCODE_LEFT;
+  io.KeyMap[ImGuiKey_RightArrow] = SDL_SCANCODE_RIGHT;
+  io.KeyMap[ImGuiKey_UpArrow] = SDL_SCANCODE_UP;
+  io.KeyMap[ImGuiKey_DownArrow] = SDL_SCANCODE_DOWN;
+  io.KeyMap[ImGuiKey_PageUp] = SDL_SCANCODE_PAGEUP;
+  io.KeyMap[ImGuiKey_PageDown] = SDL_SCANCODE_PAGEDOWN;
+  io.KeyMap[ImGuiKey_Home] = SDL_SCANCODE_HOME;
+  io.KeyMap[ImGuiKey_End] = SDL_SCANCODE_END;
+  io.KeyMap[ImGuiKey_Insert] = SDL_SCANCODE_INSERT;
+  io.KeyMap[ImGuiKey_Delete] = SDL_SCANCODE_DELETE;
+  io.KeyMap[ImGuiKey_Backspace] = SDL_SCANCODE_BACKSPACE;
+  io.KeyMap[ImGuiKey_Space] = SDL_SCANCODE_SPACE;
+  io.KeyMap[ImGuiKey_Enter] = SDL_SCANCODE_RETURN;
+  io.KeyMap[ImGuiKey_Escape] = SDL_SCANCODE_ESCAPE;
+  io.KeyMap[ImGuiKey_KeyPadEnter] = SDL_SCANCODE_KP_ENTER;
+  io.KeyMap[ImGuiKey_A] = SDL_SCANCODE_A;
+  io.KeyMap[ImGuiKey_C] = SDL_SCANCODE_C;
+  io.KeyMap[ImGuiKey_V] = SDL_SCANCODE_V;
+  io.KeyMap[ImGuiKey_X] = SDL_SCANCODE_X;
+  io.KeyMap[ImGuiKey_Y] = SDL_SCANCODE_Y;
+  io.KeyMap[ImGuiKey_Z] = SDL_SCANCODE_Z;
 #endif
 #if defined(_WIN32)
   io.BackendPlatformName = renWin->GetClassName();
@@ -606,7 +616,7 @@ void vtkDearImGUIInjector::DispatchEv(
     {
       const char* keySym = iStyle->GetInteractor()->GetKeySym();
       const unsigned int keyCode = iStyle->GetInteractor()->GetKeyCode();
-      io.AddInputCharacter(keyCode);
+      io.AddInputCharactersUTF8(keySym);
 
       if (!io.WantCaptureKeyboard || (io.WantCaptureKeyboard && self->GrabKeyboard))
       {
@@ -619,20 +629,37 @@ void vtkDearImGUIInjector::DispatchEv(
     {
       bool down = eid == vtkCommand::KeyPressEvent;
       std::string keySym = iStyle->GetInteractor()->GetKeySym();
-      const int keyCode = iStyle->GetInteractor()->GetKeyCode();
-      if (keyCode >= 0 && keyCode < IM_ARRAYSIZE(io.KeysDown))
-      {
-        io.KeysDown[keyCode] = (down);
-      }
-      io.KeySuper =
-        (((keySym == "Win_L") || (keySym == "Win_R") || (keySym == "Super_L") || (keySym == "Super_R")) && down);
-      
+#ifdef USES_X11
+      unsigned int key = iStyle->GetInteractor()->GetKeyCode();
       // Do not rely on VTK giving correct info for ctrl, shift, alt keys on X11.
       // So, check for literal in key sym string
       const auto& nul = std::string::npos;
-      io.KeyCtrl = ((keySym.find("Control") != nul) || (keySym.find("control") != nul)) && down;
-      io.KeyShift = ((keySym.find("Shift") != nul) || (keySym.find("shift") != nul)) && down;
-      io.KeyAlt = ((keySym.find("Alt") != nul) || (keySym.find("alt") != nul)) && down;
+      io.KeyAlt = (keySym.find("Alt") != nul) || (keySym.find("alt") != nul);
+      io.KeyCtrl = (keySym.find("Control") != nul) || (keySym.find("control") != nul);
+      io.KeyShift = (keySym.find("Shift") != nul) || (keySym.find("shift") != nul);
+      io.KeySuper = (keySym == "Win_L") || (keySym == "Win_R") || (keySym == "Super_L") ||
+        (keySym == "Super_R");
+      io.KeySuper &= down;
+#elif defined(USES_SDL2)
+      unsigned int key =
+        SDL_GetScancodeFromKey(static_cast<unsigned int>(iStyle->GetInteractor()->GetKeyCode()));
+      if (!key)
+      {
+        key = static_cast<unsigned int>(iStyle->GetInteractor()->GetKeyCode());
+      }
+      io.KeyAlt = iStyle->GetInteractor()->GetAltKey();
+      io.KeyCtrl = iStyle->GetInteractor()->GetControlKey();
+      io.KeyShift = iStyle->GetInteractor()->GetShiftKey();
+      io.KeySuper = (SDL_GetModState() & KMOD_GUI) ? true : false;
+#endif
+      if (key >= 0 && key < IM_ARRAYSIZE(io.KeysDown))
+      {
+        io.KeysDown[key] = (down);
+      }
+      io.KeyAlt &= down;
+      io.KeyCtrl &= down;
+      io.KeyShift &= down;
+      io.KeySuper &= down;
 
       if (!io.WantCaptureKeyboard || (io.WantCaptureKeyboard && self->GrabKeyboard))
       {
