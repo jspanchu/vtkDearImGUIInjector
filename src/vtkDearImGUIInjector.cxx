@@ -1,5 +1,4 @@
 #include <chrono>
-#include <iostream>
 #include <string>
 #include <unordered_map>
 
@@ -13,6 +12,10 @@
 #include <vtkOpenGLRenderWindow.h>
 #include <vtkRenderWindow.h>
 #include <vtkRenderWindowInteractor.h>
+
+#ifdef GL_ES_VERSION_3_0
+#define IMGUI_IMPL_OPENGL_ES3
+#endif
 
 #include "backends/imgui_impl_opengl3.h"
 #include "imgui.h"
