@@ -14,7 +14,7 @@
 #include <vtkRenderWindowInteractor.h>
 #include <vtk_glew.h>
 
-#ifdef GL_ES_VERSION_3_0
+#if defined(GL_ES_VERSION_3_0) && !defined(IMGUI_IMPL_OPENGL_ES3)
 #define IMGUI_IMPL_OPENGL_ES3
 #endif
 
