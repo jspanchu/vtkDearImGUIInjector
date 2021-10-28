@@ -12,6 +12,7 @@
 #include <vtkOpenGLRenderWindow.h>
 #include <vtkRenderWindow.h>
 #include <vtkRenderWindowInteractor.h>
+#include <vtk_glew.h>
 
 #ifdef GL_ES_VERSION_3_0
 #define IMGUI_IMPL_OPENGL_ES3
@@ -279,6 +280,7 @@ void vtkDearImGUIInjector::RenderDearImGUIOverlay(
         ? 1
         : 0);
     ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
+    fbo->DeactivateDrawBuffers();
     fbo->UnBind();
   }
 }
