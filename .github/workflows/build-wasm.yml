@@ -56,5 +56,5 @@ jobs:
             git config user.name Jaswant Panchumarti
             git config user.email jspanchu@gmail.com
             git add imgui_vtk_app.js imgui_vtk_app.wasm index.html
-            git commit -m "Deploy WebAssembly binaries"
+            git diff-index --quiet HEAD || git commit -m "Deploy WebAssembly binaries"
             git push origin HEAD:gh-pages
