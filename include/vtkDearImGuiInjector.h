@@ -28,11 +28,11 @@ class vtkRenderWindowInteractor;
 class vtkCallbackCommand;
 class vtkInteractorStyle;
 
-class VTKDEARIMGUIINJECTOR_EXPORT vtkDearImGUIInjector : public vtkObject
+class VTKDEARIMGUIINJECTOR_EXPORT vtkDearImGuiInjector : public vtkObject
 {
 public:
-  static vtkDearImGUIInjector* New();
-  vtkTypeMacro(vtkDearImGUIInjector, vtkObject);
+  static vtkDearImGuiInjector* New();
+  vtkTypeMacro(vtkDearImGuiInjector, vtkObject);
 
   // rendering and interaction callbacks are installed here.
   void Inject(vtkRenderWindowInteractor* interactor);
@@ -40,21 +40,21 @@ public:
   void InstallEventCallback(vtkRenderWindowInteractor* interactor);
   void UninstallEventCallback();
 
-  // Observe this event and draw application specific ImGUI widgets
-  static const unsigned long ImGUIDrawEvent;
+  // Observe this event and draw application specific ImGui widgets
+  static const unsigned long ImGuiDrawEvent, ImGuiSetupEvent, ImGuiTearDownEvent;
   vtkWeakPointer<vtkRenderWindowInteractor> Interactor;
 
 protected:
-  vtkDearImGUIInjector();
-  ~vtkDearImGUIInjector() override;
+  vtkDearImGuiInjector();
+  ~vtkDearImGuiInjector() override;
 
   // pair imgui with vtk
   bool SetUp(vtkRenderWindow* renWin);
   void TearDown(vtkObject* caller, unsigned long eid, void* callData);
 
   // hooks into vtkRenderWindow
-  void BeginDearImGUIOverlay(vtkObject* caller, unsigned long eid, void* callData);
-  void RenderDearImGUIOverlay(vtkObject* caller, unsigned long eid, void* callData);
+  void BeginDearImGuiOverlay(vtkObject* caller, unsigned long eid, void* callData);
+  void RenderDearImGuiOverlay(vtkObject* caller, unsigned long eid, void* callData);
 
   // Mouse will be set here.
   void UpdateMousePosAndButtons(vtkRenderWindowInteractor* interactor);
@@ -64,7 +64,7 @@ protected:
   void PumpEv(vtkObject* caller, unsigned long eid, void* callData);
 
   // routes events:
-  // VTK[X,Win32,Cocoa]Interactor >>>> DearImGUI >>>> VTK[...]InteractorStyle
+  // VTK[X,Win32,Cocoa]Interactor >>>> DearImGui >>>> VTK[...]InteractorStyle
   static void DispatchEv(vtkObject* caller, unsigned long eid, void* clientData, void* callData);
 
   vtkNew<vtkCallbackCommand> EventCallbackCommand;
@@ -85,6 +85,6 @@ protected:
   bool ShowAppAbout = false;
 
 private:
-  vtkDearImGUIInjector(const vtkDearImGUIInjector&) = delete;
-  void operator=(const vtkDearImGUIInjector&) = delete;
+  vtkDearImGuiInjector(const vtkDearImGuiInjector&) = delete;
+  void operator=(const vtkDearImGuiInjector&) = delete;
 };

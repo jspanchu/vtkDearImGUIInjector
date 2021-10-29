@@ -1,5 +1,5 @@
 cmake_minimum_required (VERSION 3.6)
-project (vtkDearImGUIInjector)
+project (vtkDearImGuiInjector)
 include (GenerateExportHeader)
 
 find_package(ParaView
@@ -17,6 +17,8 @@ message(STATUS "VTK_VERSION: ${VTK_VERSION}")
 
 # Allow the developer to select if Dynamic or Static libraries are built
 option(BUILD_SHARED_LIBS "Build Shared Libraries" ON)
+# For an adobe spectrum look.
+option(USE_ADOBE_SPECTRUM_STYLE "Style ImGui with Adobe spectrum look" ON)
 
 # Set the LIB_TYPE variable to STATIC
 set(LIB_TYPE STATIC)
@@ -28,20 +30,31 @@ endif()
 # Create a target for the library
 add_library(${PROJECT_NAME} ${LIB_TYPE} "")
 generate_export_header(${PROJECT_NAME})
+target_sources(${PROJECT_NAME} PRIVATE "src/vtkDearImGuiInjector.cxx")
+if (USE_ADOBE_SPECTRUM_STYLE)
+  set(_IMGUI_DIR "adobe_imgui_spectrum")
+  target_sources(${PROJECT_NAME} PRIVATE "${_IMGUI_DIR}/imgui_spectrum.cpp")
+elseif(IMGUI_DIR) # Custom imgui directory
+  set(_IMGUI_DIR IMGUI_DIR)
+elseif(IMGUI_DIR)
+  set(_IMGUI_DIR "imgui")
+endif()
+
 target_sources(${PROJECT_NAME} PRIVATE
-"src/vtkDearImGUIInjector.cxx"
-"imgui/imgui.cpp"
-"imgui/imgui_demo.cpp"
-"imgui/imgui_draw.cpp"
-"imgui/imgui_tables.cpp"
-"imgui/imgui_widgets.cpp"
-"imgui/backends/imgui_impl_opengl3.cpp"
+  "${_IMGUI_DIR}/imgui.cpp"
+  "${_IMGUI_DIR}/imgui_demo.cpp"
+  "${_IMGUI_DIR}/imgui_draw.cpp"
+  "${_IMGUI_DIR}/imgui_tables.cpp"
+  "${_IMGUI_DIR}/imgui_widgets.cpp"
+  "${_IMGUI_DIR}/backends/imgui_impl_opengl3.cpp"
 )
+
 if (EMSCRIPTEN)
   target_compile_definitions(${PROJECT_NAME} PUBLIC IMGUI_IMPL_OPENGL_ES3)
 endif()
 target_include_directories(${PROJECT_NAME} PUBLIC "include")
-target_include_directories(${PROJECT_NAME} PUBLIC "imgui")
+target_compile_definitions(${PROJECT_NAME} PUBLIC ADOBE_IMGUI_SPECTRUM)
+target_include_directories(${PROJECT_NAME} PUBLIC ${_IMGUI_DIR})
 target_include_directories(${PROJECT_NAME} PUBLIC
   $<BUILD_INTERFACE:${PROJECT_BINARY_DIR}>
   $<INSTALL_INTERFACE:include>
@@ -57,12 +70,20 @@ install(FILES ${PROJECT_NAME}.h ${PROJECT_BINARY_DIR}/${PROJECT_NAME}_export.h D
 
 
 # -----------------------------------------------------------------------------
-# EMSCRIPTEN only
+# Configure application
 # -----------------------------------------------------------------------------
 
 if (NOT EMSCRIPTEN)
   message("Skipping WebAssembly example: This needs to run inside an Emscripten build environment")
+
   add_executable(test_imgui_vtk "src/test_imgui_vtk.cxx")
+  if (USE_ADOBE_SPECTRUM_STYLE)
+    target_sources(test_imgui_vtk PRIVATE
+      "adobe_imgui_spectrum/imgui_spectrum.cpp"
+      "adobe_imgui_spectrum/imgui_spectrum.h"
+    )
+  endif()
+
   target_link_libraries(test_imgui_vtk PRIVATE ${PROJECT_NAME} ${VTK_LIBRARIES})
   vtk_module_autoinit(
       TARGETS test_imgui_vtk

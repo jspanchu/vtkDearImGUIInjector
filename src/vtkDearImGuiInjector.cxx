@@ -2,7 +2,7 @@
 #include <string>
 #include <unordered_map>
 
-#include <vtkDearImGUIInjector.h>
+#include <vtkDearImGuiInjector.h>
 
 #include <vtkCallbackCommand.h>
 #include <vtkInteractorStyleSwitch.h>
@@ -25,7 +25,7 @@
 #include "emscripten.h"
 #endif
 
-vtkStandardNewMacro(vtkDearImGUIInjector);
+vtkStandardNewMacro(vtkDearImGuiInjector);
 
 namespace
 {
@@ -41,19 +41,19 @@ const std::unordered_map<int, int> imguiToVtkCursors(
     { ImGuiMouseCursor_NotAllowed, VTK_CURSOR_DEFAULT } });
 }
 
-const unsigned long vtkDearImGUIInjector::ImGUIDrawEvent = vtkCommand::UserEvent + 1;
+const unsigned long vtkDearImGuiInjector::ImGuiSetupEvent = vtkCommand::UserEvent + 2;
+const unsigned long vtkDearImGuiInjector::ImGuiDrawEvent = vtkCommand::UserEvent + 1;
+const unsigned long vtkDearImGuiInjector::ImGuiTearDownEvent = vtkCommand::UserEvent + 3;
 
-vtkDearImGUIInjector::vtkDearImGUIInjector()
+
+vtkDearImGuiInjector::vtkDearImGuiInjector()
 {
   // Start DearImGui
   IMGUI_CHECKVERSION();
   ImGui::CreateContext();
-
-  // Setup Dear ImGui style
-  ImGui::StyleColorsDark();
 }
 
-vtkDearImGUIInjector::~vtkDearImGUIInjector()
+vtkDearImGuiInjector::~vtkDearImGuiInjector()
 {
   // Destroy DearImGUi
   if (ImGui::GetCurrentContext())
@@ -62,7 +62,7 @@ vtkDearImGUIInjector::~vtkDearImGUIInjector()
   }
 }
 
-void vtkDearImGUIInjector::Inject(vtkRenderWindowInteractor* interactor)
+void vtkDearImGuiInjector::Inject(vtkRenderWindowInteractor* interactor)
 {
   if (this->FinishedSetup)
   {
@@ -78,18 +78,18 @@ void vtkDearImGUIInjector::Inject(vtkRenderWindowInteractor* interactor)
 
   // intercept interactor
   this->EventCallbackCommand->SetClientData(this);
-  this->EventCallbackCommand->SetCallback(&vtkDearImGUIInjector::DispatchEv);
-  interactor->AddObserver(vtkCommand::StartEvent, this, &vtkDearImGUIInjector::PumpEv);
+  this->EventCallbackCommand->SetCallback(&vtkDearImGuiInjector::DispatchEv);
+  interactor->AddObserver(vtkCommand::StartEvent, this, &vtkDearImGuiInjector::PumpEv);
 
   // intercept renderer
-  renWin->AddObserver(vtkCommand::StartEvent, this, &vtkDearImGUIInjector::BeginDearImGUIOverlay);
-  renWin->AddObserver(vtkCommand::RenderEvent, this, &vtkDearImGUIInjector::RenderDearImGUIOverlay);
+  renWin->AddObserver(vtkCommand::StartEvent, this, &vtkDearImGuiInjector::BeginDearImGuiOverlay);
+  renWin->AddObserver(vtkCommand::RenderEvent, this, &vtkDearImGuiInjector::RenderDearImGuiOverlay);
 
   // Safely exit when vtk app exits
-  interactor->AddObserver(vtkCommand::ExitEvent, this, &vtkDearImGUIInjector::TearDown);
+  interactor->AddObserver(vtkCommand::ExitEvent, this, &vtkDearImGuiInjector::TearDown);
 }
 
-bool vtkDearImGUIInjector::SetUp(vtkRenderWindow* renWin)
+bool vtkDearImGuiInjector::SetUp(vtkRenderWindow* renWin)
 {
   if (renWin->GetNeverRendered())
   {
@@ -98,7 +98,7 @@ bool vtkDearImGUIInjector::SetUp(vtkRenderWindow* renWin)
   }
   if (this->FinishedSetup)
   {
-    return this->FinishedSetup;
+    return true;
   }
 
   ImGuiIO& io = ImGui::GetIO();
@@ -159,11 +159,13 @@ bool vtkDearImGUIInjector::SetUp(vtkRenderWindow* renWin)
   io.BackendPlatformName = renWin->GetClassName();
   io.ImeWindowHandle = renWin->GetGenericWindowId();
 #endif
-  this->FinishedSetup = true;
-  return ImGui_ImplOpenGL3_Init();
+  bool status = ImGui_ImplOpenGL3_Init();
+  this->FinishedSetup = status;
+  this->InvokeEvent(vtkDearImGuiInjector::ImGuiSetupEvent, reinterpret_cast<void*>(&this->FinishedSetup));
+  return status;
 }
 
-void vtkDearImGUIInjector::TearDown(vtkObject* caller, unsigned long eid, void* callData)
+void vtkDearImGuiInjector::TearDown(vtkObject* caller, unsigned long eid, void* callData)
 {
   auto interactor = vtkRenderWindowInteractor::SafeDownCast(caller);
   if (interactor != nullptr)
@@ -171,19 +173,20 @@ void vtkDearImGUIInjector::TearDown(vtkObject* caller, unsigned long eid, void* 
     interactor->SetDone(true);
   }
   ImGui_ImplOpenGL3_Shutdown();
+  this->InvokeEvent(vtkDearImGuiInjector::ImGuiTearDownEvent, nullptr);
   vtkDebugMacro(<< "tear down");
 }
 
-void vtkDearImGUIInjector::BeginDearImGUIOverlay(
+void vtkDearImGuiInjector::BeginDearImGuiOverlay(
   vtkObject* caller, unsigned long eid, void* callData)
 {
-  vtkDebugMacro(<< "BeginDearImGUIOverlay");
+  vtkDebugMacro(<< "BeginDearImGuiOverlay");
   auto renWin = vtkRenderWindow::SafeDownCast(caller);
 
   // Ensure valid DearImGui context exists.
   if (!ImGui::GetCurrentContext())
   {
-    vtkDebugMacro(<< "BeginDearImGUIOverlay called, but DearImGui context does not exist.");
+    vtkDebugMacro(<< "BeginDearImGuiOverlay called, but DearImGui context does not exist.");
     return;
   }
 
@@ -201,7 +204,7 @@ void vtkDearImGUIInjector::BeginDearImGUIOverlay(
   io.DisplaySize = ImVec2((float)w, (float)h);
   io.DisplayFramebufferScale = ImVec2(1, 1);
 
-  // Increment time for DearImGUI
+  // Increment time for DearImGui
   using namespace std::chrono;
   auto currentTime =
     double(duration_cast<milliseconds>(high_resolution_clock::now().time_since_epoch()).count()) /
@@ -215,7 +218,7 @@ void vtkDearImGUIInjector::BeginDearImGUIOverlay(
 
   vtkDebugMacro(<< "new frame begin");
 
-  // Begin ImGUI drawing
+  // Begin ImGui drawing
   ImGui_ImplOpenGL3_NewFrame();
   ImGui::NewFrame();
   // Menu Bar
@@ -242,6 +245,7 @@ void vtkDearImGUIInjector::BeginDearImGUIOverlay(
   }
   if (this->ShowDemo)
   {
+    ImGui::SetNextWindowCollapsed(true, ImGuiCond_Once);
     ImGui::ShowDemoWindow(&this->ShowDemo);
   }
   if (this->ShowAppMetrics)
@@ -258,15 +262,15 @@ void vtkDearImGUIInjector::BeginDearImGUIOverlay(
   {
     ImGui::ShowAboutWindow(&this->ShowAppAbout);
   }
-  this->InvokeEvent(ImGUIDrawEvent);
+  this->InvokeEvent(ImGuiDrawEvent);
 
   vtkDebugMacro(<< "new frame end");
 }
 
-void vtkDearImGUIInjector::RenderDearImGUIOverlay(
+void vtkDearImGuiInjector::RenderDearImGuiOverlay(
   vtkObject* caller, unsigned long eid, void* callData)
 {
-  vtkDebugMacro(<< "RenderDearImGUIOverlay");
+  vtkDebugMacro(<< "RenderDearImGuiOverlay");
   auto renWin = vtkRenderWindow::SafeDownCast(caller);
   auto openGLrenWin = vtkOpenGLRenderWindow::SafeDownCast(renWin);
   ImGuiIO& io = ImGui::GetIO();
@@ -285,7 +289,7 @@ void vtkDearImGUIInjector::RenderDearImGUIOverlay(
   }
 }
 
-void vtkDearImGUIInjector::InstallEventCallback(vtkRenderWindowInteractor* interactor)
+void vtkDearImGuiInjector::InstallEventCallback(vtkRenderWindowInteractor* interactor)
 {
   auto iObserver = interactor->GetInteractorStyle();
   if (iObserver == nullptr)
@@ -366,12 +370,12 @@ void vtkDearImGUIInjector::InstallEventCallback(vtkRenderWindowInteractor* inter
   this->currentIStyle->AddObserver(vtkCommand::CharEvent, this->EventCallbackCommand, 1.0);
 }
 
-void vtkDearImGUIInjector::UninstallEventCallback()
+void vtkDearImGuiInjector::UninstallEventCallback()
 {
   this->currentIStyle->RemoveObserver(this->EventCallbackCommand);
 }
 
-void vtkDearImGUIInjector::UpdateMousePosAndButtons(vtkRenderWindowInteractor* interactor)
+void vtkDearImGuiInjector::UpdateMousePosAndButtons(vtkRenderWindowInteractor* interactor)
 {
   // Update buttons
   ImGuiIO& io = ImGui::GetIO();
@@ -393,7 +397,7 @@ void vtkDearImGUIInjector::UpdateMousePosAndButtons(vtkRenderWindowInteractor* i
   }
 }
 
-void vtkDearImGUIInjector::UpdateMouseCursor(vtkRenderWindow* renWin)
+void vtkDearImGuiInjector::UpdateMouseCursor(vtkRenderWindow* renWin)
 {
   ImGuiIO& io = ImGui::GetIO();
   if ((io.ConfigFlags & ImGuiConfigFlags_NoMouseCursorChange))
@@ -418,7 +422,7 @@ namespace
 
 void mainLoopCallback(void* arg)
 {
-  vtkDearImGUIInjector* self = static_cast<vtkDearImGUIInjector*>(arg);
+  vtkDearImGuiInjector* self = static_cast<vtkDearImGuiInjector*>(arg);
   vtkRenderWindowInteractor* interactor = self->Interactor;
   vtkRenderWindow* renWin = interactor->GetRenderWindow();
 
@@ -431,7 +435,7 @@ void mainLoopCallback(void* arg)
 }
 #endif
 
-void vtkDearImGUIInjector::PumpEv(vtkObject* caller, unsigned long eid, void* callData)
+void vtkDearImGuiInjector::PumpEv(vtkObject* caller, unsigned long eid, void* callData)
 {
   vtkDebugMacro(<< "PumpEv");
   auto interactor = vtkRenderWindowInteractor::SafeDownCast(caller);
@@ -454,12 +458,12 @@ void vtkDearImGUIInjector::PumpEv(vtkObject* caller, unsigned long eid, void* ca
 #endif
 }
 
-void vtkDearImGUIInjector::DispatchEv(
+void vtkDearImGuiInjector::DispatchEv(
   vtkObject* caller, unsigned long eid, void* clientData, void* callData)
 {
   // auto interactor = vtkRenderWindowInteractor::SafeDownCast(caller);
   auto iStyle = vtkInteractorStyle::SafeDownCast(caller);
-  auto self = reinterpret_cast<vtkDearImGUIInjector*>(clientData);
+  auto self = reinterpret_cast<vtkDearImGuiInjector*>(clientData);
 
   ImGuiIO& io = ImGui::GetIO();
   (void)io;
@@ -665,6 +669,16 @@ void vtkDearImGUIInjector::DispatchEv(
       io.KeyCtrl &= down;
       io.KeyShift &= down;
       io.KeySuper &= down;
+
+#ifdef __EMSCRIPTEN__ // do not exit upon 'e' or 'q'
+      if (!io.KeyAlt && !io.KeyCtrl && !io.KeyShift && !io.KeySuper)
+      {
+        if ((keySym == "e") || (keySym == "E") || (keySym == "q") || (keySym == "q"))
+        {
+          break;
+        }
+      }
+#endif
 
       if (!io.WantCaptureKeyboard || (io.WantCaptureKeyboard && self->GrabKeyboard))
       {
