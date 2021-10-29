@@ -6,7 +6,6 @@
 #include <vtkdearimguiinjector_export.h>
 
 #if __has_include(<vtkXRenderWindowInteractor.h>)
-  #include <X11/Xlib.h>
   #define USES_X11 1
 #endif
 #if __has_include(<vtkWin32RenderWindowInteractor.h>)
@@ -14,7 +13,6 @@
   #warning "Unsupported platform! Keyboard mapping not setup"
 #endif
 #if __has_include(<vtkSDL2RenderWindowInteractor.h>)
-  #include <SDL2/SDL.h>
   #define USES_SDL2 1
   #undef USES_X11
   #undef USES_WIN32

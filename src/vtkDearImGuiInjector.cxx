@@ -23,6 +23,14 @@
 
 #ifdef __EMSCRIPTEN__
 #include "emscripten.h"
+#include <emscripten/html5.h>
+#endif
+
+
+#ifdef USES_X11
+#include <X11/Xlib.h>
+#elif defined(USES_SDL2)
+#include <SDL2/SDL.h>
 #endif
 
 vtkStandardNewMacro(vtkDearImGuiInjector);
@@ -416,7 +424,7 @@ void vtkDearImGuiInjector::UpdateMouseCursor(vtkRenderWindow* renWin)
     renWin->ShowCursor();
   }
 }
-#ifdef __EMSCRIPTEN__
+
 namespace
 {
 
@@ -432,8 +440,17 @@ void mainLoopCallback(void* arg)
   if (!interactor->GetDone())
     renWin->Render();
 }
+
+#ifdef __EMSCRIPTEN__
+EM_BOOL resizeCallback(int eventType, const EmscriptenUiEvent* e, void* userData)
+{
+  auto interactor = reinterpret_cast<vtkRenderWindowInteractor*>(userData);
+  interactor->UpdateSize(e->windowInnerWidth, e->windowInnerHeight);
+  return 0;
 }
 #endif
+
+}
 
 void vtkDearImGuiInjector::PumpEv(vtkObject* caller, unsigned long eid, void* callData)
 {
@@ -444,16 +461,12 @@ void vtkDearImGuiInjector::PumpEv(vtkObject* caller, unsigned long eid, void* ca
   interactor->Initialize();
 
 #ifdef __EMSCRIPTEN__
+  emscripten_set_resize_callback(EMSCRIPTEN_EVENT_TARGET_WINDOW, reinterpret_cast<void*>(interactor), 1, resizeCallback);
   emscripten_set_main_loop_arg(&mainLoopCallback, (void*)this, 0, 1);
 #else
   while (!interactor->GetDone())
   {
-    this->InstallEventCallback(interactor);
-    interactor->ProcessEvents();
-    this->UninstallEventCallback();
-    if (!interactor->GetDone())
-      renWin->Render();
-    vtkDebugMacro(<< "PumpEv: Window Render");
+    mainLoopCallback(reinterpret_cast<void*>(this));
   }
 #endif
 }
@@ -669,16 +682,6 @@ void vtkDearImGuiInjector::DispatchEv(
       io.KeyCtrl &= down;
       io.KeyShift &= down;
       io.KeySuper &= down;
-
-#ifdef __EMSCRIPTEN__ // do not exit upon 'e' or 'q'
-      if (!io.KeyAlt && !io.KeyCtrl && !io.KeyShift && !io.KeySuper)
-      {
-        if ((keySym == "e") || (keySym == "E") || (keySym == "q") || (keySym == "q"))
-        {
-          break;
-        }
-      }
-#endif
 
       if (!io.WantCaptureKeyboard || (io.WantCaptureKeyboard && self->GrabKeyboard))
       {

@@ -22,6 +22,9 @@
         })(),
         onRuntimeInitialized:  function() {
           console.log('initialized');
+          setTimeout(() => {
+            window.dispatchEvent(new Event('resize'));
+          }, 0);
         },
       };
 
