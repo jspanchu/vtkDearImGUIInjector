@@ -1,14 +1,13 @@
 #include <sstream>
 #include <string>
-#include <vtkInteractorStyle.h>
-#include <vtkInteractorStyleSwitch.h>
 
 #include "vtkDearImGuiInjector.h"
 
 #include "vtkActor.h"
 #include "vtkCallbackCommand.h"
 #include "vtkConeSource.h"
-#include "vtkInteractorStyleTrackballCamera.h"
+#include "vtkInteractorStyle.h"
+#include "vtkInteractorStyleSwitch.h"
 #include "vtkNew.h"
 #include "vtkPolyData.h"
 #include "vtkPolyDataMapper.h"
