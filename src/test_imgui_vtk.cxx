@@ -26,8 +26,9 @@
 #include "vtkOpenGLRenderWindow.h" // needed to check if opengl is supported.
 
 std::string ReportVTKOpenGL(vtkRenderWindow*);
-// This function listens to vtkDearImGuiInjector::ImGuiSetupEvent
+// Listens to vtkDearImGuiInjector::ImGuiSetupEvent
 void SetupUI(vtkDearImGuiInjector*);
+// Listens to vtkDearImGuiInjector::ImGuiDrawEvent
 void DrawUI(vtkDearImGuiInjector*);
 void HelpMarker(const char* desc);
 
@@ -62,14 +63,18 @@ int main(int argc, char* argv[])
 
   // Add the actors to the scene
   renderer->AddActor(actor);
-
+  
+  /// Change to your code begins here. ///
   // Initialize an overlay with DearImgui elements.
   vtkNew<vtkDearImGuiInjector> dearImGuiOverlay;
   // 💉 the overlay.
   dearImGuiOverlay->Inject(renderWindowInteractor);
+  // These functions add callbacks to ImGuiSetupEvent and ImGuiDrawEvents.
   SetupUI(dearImGuiOverlay);
+  // You can draw custom user interface elements using ImGui:: namespace.
   DrawUI(dearImGuiOverlay);
-  // cbCommand can draw custom user interface elements using ImGui:: namespace.
+  /// Change to your code ends here. ///
+
   // Start rendering app
   renderer->SetBackground(0.2, 0.3, 0.4);
   renderWindow->SetSize(1920, 1080);
@@ -80,6 +85,10 @@ int main(int argc, char* argv[])
 
   return 0;
 }
+
+//------------------------------------------------------------------------------
+// Custom extra bloat to look good and show some VTK information
+//------------------------------------------------------------------------------
 
 std::string ReportVTKOpenGL(vtkRenderWindow* rw)
 {        
