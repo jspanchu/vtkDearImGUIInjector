@@ -50,7 +50,7 @@ int main(int argc, char* argv[])
   vtkNew<vtkRenderer> renderer;
 #ifdef USES_SDL2
   vtkNew<vtkSDL2OpenGLRenderWindow> renderWindow;
-  vtkNew<vtkSDL2RenderWindowInteractor> renderWindowInteractor;
+  vtkNew<vtkSDL2RenderWindowInteractor> iren;
 #else
   vtkNew<vtkRenderWindow> renderWindow;
   vtkNew<vtkRenderWindowInteractor> iren;
