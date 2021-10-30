@@ -1,13 +1,14 @@
 #include <sstream>
 #include <string>
+#include <vtk_glew.h>
+#ifndef VTK_MODULE_vtkglew_GLES3
+#define HAS_COW 1
+#endif
 
 #include "vtkDearImGuiInjector.h"
 
 #include "vtkActor.h"
 #include "vtkCallbackCommand.h"
-#if __has_include("vtkCameraOrientationWidget.h") && !defined(GL_ES_VERSION_3_0)
-#define HAS_COW 1
-#endif
 #ifdef HAS_COW
 #include "vtkCameraOrientationWidget.h"
 #include "vtkCameraOrientationRepresentation.h"
