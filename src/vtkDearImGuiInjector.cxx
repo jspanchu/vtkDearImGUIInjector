@@ -212,7 +212,7 @@ void vtkDearImGuiInjector::BeginDearImGuiOverlay(
   auto currentTime =
     double(duration_cast<milliseconds>(high_resolution_clock::now().time_since_epoch()).count()) /
     1000.;
-  io.DeltaTime = this->Time > 0.0 ? (currentTime - this->Time) : (1. / 60.);
+  io.DeltaTime = (this->Time > 0.0 && this->Time < currentTime) ? (currentTime - this->Time) : (1. / 60.);
   this->Time = currentTime;
 
   auto interactor = renWin->GetInteractor();
