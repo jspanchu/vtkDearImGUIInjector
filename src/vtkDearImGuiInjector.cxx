@@ -31,12 +31,35 @@
 #include <X11/Xlib.h>
 #elif defined(USES_SDL2)
 #include <SDL2/SDL.h>
+#elif defined(USES_WIN32)
+#include <vtkWindows.h>
 #endif
 
 vtkStandardNewMacro(vtkDearImGuiInjector);
 
 namespace
 {
+#ifdef USES_WIN32
+std::unordered_map<std::string, unsigned int> KeySymToVKeyCode = { { "Cancel", 3 },
+  { "BackSpace", 8 }, { "Tab", 9 }, { "Clear", 12 }, { "Return", 13 }, { "Shift_L", 16 },
+  { "Control_L", 17 }, { "Alt_L", 18 }, { "Pause", 19 }, { "Caps_Lock", 20 }, { "Escape", 27 },
+  { "space", 32 }, { "Prior", 33 }, { "Next", 34 }, { "End", 35 }, { "Home", 36 }, { "Left", 37 },
+  { "Up", 38 }, { "Right", 39 }, { "Down", 40 }, { "Select", 41 }, { "Execute", 43 },
+  { "Snapshot", 44 }, { "Insert", 45 }, { "Delete", 46 }, { "Help", 47 }, { "1", 49 }, { "2", 50 },
+  { "3", 51 }, { "4", 52 }, { "5", 53 }, { "6", 54 }, { "7", 55 }, { "8", 56 }, { "9", 57 },
+  { "a", 65 }, { "b", 66 }, { "c", 67 }, { "d", 68 }, { "e", 69 }, { "f", 70 }, { "g", 71 },
+  { "h", 72 }, { "i", 73 }, { "j", 74 }, { "k", 75 }, { "l", 76 }, { "m", 77 }, { "n", 78 },
+  { "o", 79 }, { "p", 80 }, { "q", 81 }, { "r", 82 }, { "s", 83 }, { "t", 84 }, { "u", 85 },
+  { "v", 86 }, { "w", 87 }, { "x", 88 }, { "y", 89 }, { "z", 90 }, { "Win_L", 91 }, { "Win_R", 92 },
+  { "App", 93 }, { "KP_0", 96 }, { "KP_1", 97 }, { "KP_2", 98 }, { "KP_3", 99 }, { "KP_4", 100 },
+  { "KP_5", 101 }, { "KP_6", 102 }, { "KP_7", 103 }, { "KP_8", 104 }, { "KP_9", 105 },
+  { "asterisk", 106 }, { "plus", 107 }, { "bar", 108 }, { "minus", 109 }, { "period", 110 },
+  { "slash", 111 }, { "F1", 112 }, { "F2", 113 }, { "F3", 114 }, { "F4", 115 }, { "F5", 116 },
+  { "F6", 117 }, { "F7", 118 }, { "F8", 119 }, { "F9", 120 }, { "F10", 121 }, { "F11", 122 },
+  { "F12", 123 }, { "F13", 124 }, { "F14", 125 }, { "F15", 126 }, { "F16", 127 }, { "F17", 128 },
+  { "F18", 129 }, { "F19", 130 }, { "F20", 131 }, { "F21", 132 }, { "F22", 133 }, { "F23", 134 },
+  { "F24", 135 }, { "Num_Lock", 144 }, { "Scroll_Lock", 145 } };
+#endif
 
 const std::unordered_map<int, int> imguiToVtkCursors(
   { { ImGuiMouseCursor_None, VTK_CURSOR_DEFAULT }, { ImGuiMouseCursor_Arrow, VTK_CURSOR_ARROW },
@@ -157,6 +180,29 @@ bool vtkDearImGuiInjector::SetUp(vtkRenderWindow* renWin)
   io.KeyMap[ImGuiKey_X] = SDL_SCANCODE_X;
   io.KeyMap[ImGuiKey_Y] = SDL_SCANCODE_Y;
   io.KeyMap[ImGuiKey_Z] = SDL_SCANCODE_Z;
+#elif USES_WIN32
+  io.KeyMap[ImGuiKey_Tab] = VK_TAB;
+  io.KeyMap[ImGuiKey_LeftArrow] = VK_LEFT;
+  io.KeyMap[ImGuiKey_RightArrow] = VK_RIGHT;
+  io.KeyMap[ImGuiKey_UpArrow] = VK_UP;
+  io.KeyMap[ImGuiKey_DownArrow] = VK_DOWN;
+  io.KeyMap[ImGuiKey_PageUp] = VK_PRIOR;
+  io.KeyMap[ImGuiKey_PageDown] = VK_NEXT;
+  io.KeyMap[ImGuiKey_Home] = VK_HOME;
+  io.KeyMap[ImGuiKey_End] = VK_END;
+  io.KeyMap[ImGuiKey_Insert] = VK_INSERT;
+  io.KeyMap[ImGuiKey_Delete] = VK_DELETE;
+  io.KeyMap[ImGuiKey_Backspace] = VK_BACK;
+  io.KeyMap[ImGuiKey_Space] = VK_SPACE;
+  io.KeyMap[ImGuiKey_Enter] = VK_RETURN;
+  io.KeyMap[ImGuiKey_Escape] = VK_ESCAPE;
+  io.KeyMap[ImGuiKey_KeyPadEnter] = VK_RETURN;
+  io.KeyMap[ImGuiKey_A] = 'A';
+  io.KeyMap[ImGuiKey_C] = 'C';
+  io.KeyMap[ImGuiKey_V] = 'V';
+  io.KeyMap[ImGuiKey_X] = 'X';
+  io.KeyMap[ImGuiKey_Y] = 'Y';
+  io.KeyMap[ImGuiKey_Z] = 'Z';
 #endif
 #if defined(_WIN32)
   io.BackendPlatformName = renWin->GetClassName();
@@ -164,7 +210,8 @@ bool vtkDearImGuiInjector::SetUp(vtkRenderWindow* renWin)
 #endif
   bool status = ImGui_ImplOpenGL3_Init();
   this->FinishedSetup = status;
-  this->InvokeEvent(vtkDearImGuiInjector::ImGuiSetupEvent, reinterpret_cast<void*>(&this->FinishedSetup));
+  this->InvokeEvent(
+    vtkDearImGuiInjector::ImGuiSetupEvent, reinterpret_cast<void*>(&this->FinishedSetup));
   return status;
 }
 
@@ -212,7 +259,8 @@ void vtkDearImGuiInjector::BeginDearImGuiOverlay(
   auto currentTime =
     double(duration_cast<milliseconds>(high_resolution_clock::now().time_since_epoch()).count()) /
     1000.;
-  io.DeltaTime = (this->Time > 0.0 && this->Time < currentTime) ? (currentTime - this->Time) : (1. / 60.);
+  io.DeltaTime =
+    (this->Time > 0.0 && this->Time < currentTime) ? (currentTime - this->Time) : (1. / 60.);
   this->Time = currentTime;
 
   auto interactor = renWin->GetInteractor();
@@ -450,7 +498,8 @@ void vtkDearImGuiInjector::PumpEv(vtkObject* caller, unsigned long eid, void* ca
   interactor->Initialize();
 
 #ifdef __EMSCRIPTEN__
-  emscripten_set_resize_callback(EMSCRIPTEN_EVENT_TARGET_WINDOW, reinterpret_cast<void*>(interactor), 1, resizeCallback);
+  emscripten_set_resize_callback(
+    EMSCRIPTEN_EVENT_TARGET_WINDOW, reinterpret_cast<void*>(interactor), 1, resizeCallback);
   emscripten_set_main_loop_arg(&mainLoopCallback, (void*)this, 0, 1);
 #else
   while (!interactor->GetDone())
@@ -625,8 +674,21 @@ void vtkDearImGuiInjector::DispatchEv(
     }
     case vtkCommand::CharEvent:
     {
-      const char* keySym = iStyle->GetInteractor()->GetKeySym();
-      io.AddInputCharactersUTF8(keySym);
+      std::string keySym = iStyle->GetInteractor()->GetKeySym();
+#ifdef USES_WIN32
+      unsigned int key = 0;
+      if (KeySymToVKeyCode.find(keySym.c_str()) != KeySymToVKeyCode.end())
+      {
+        key = KeySymToVKeyCode.at(keySym.c_str());
+      }
+      else
+      {
+        key = static_cast<unsigned int>(iStyle->GetInteractor()->GetKeyCode());
+      }
+      io.AddInputCharacter(key);
+#else
+      io.AddInputCharactersUTF8(keySym.c_str());
+#endif
 
       if (!io.WantCaptureKeyboard || (io.WantCaptureKeyboard && self->GrabKeyboard))
       {
@@ -663,6 +725,18 @@ void vtkDearImGuiInjector::DispatchEv(
       io.KeySuper = (SDL_GetModState() & KMOD_GUI) ? true : false;
 #elif defined(USES_WIN32)
       unsigned int key = 0;
+      if (KeySymToVKeyCode.find(keySym.c_str()) != KeySymToVKeyCode.end())
+      {
+        key = KeySymToVKeyCode.at(keySym.c_str());
+      }
+      else
+      {
+        key = static_cast<unsigned int>(iStyle->GetInteractor()->GetKeyCode());
+      }
+      io.KeyAlt = iStyle->GetInteractor()->GetAltKey();
+      io.KeyCtrl = iStyle->GetInteractor()->GetControlKey();
+      io.KeyShift = iStyle->GetInteractor()->GetShiftKey();
+      io.KeySuper = (GetKeyState(VK_LWIN) || GetKeyState(VK_RWIN)) ? true : false;
 #endif
       if (key >= 0 && key < IM_ARRAYSIZE(io.KeysDown))
       {
