@@ -282,12 +282,7 @@ void vtkDearImGuiInjector::RenderDearImGuiOverlay(
     ImGui::Render();
     auto fbo = openGLrenWin->GetRenderFramebuffer();
     fbo->Bind();
-    fbo->ActivateDrawBuffer(
-      (openGLrenWin->GetStereoRender() && openGLrenWin->GetStereoType() == VTK_STEREO_CRYSTAL_EYES)
-        ? 1
-        : 0);
     ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
-    fbo->DeactivateDrawBuffers();
     fbo->UnBind();
   }
 }
