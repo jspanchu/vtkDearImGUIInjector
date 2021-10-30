@@ -5,7 +5,7 @@
 
 #include "vtkActor.h"
 #include "vtkCallbackCommand.h"
-#if __has_include("vtkCameraOrientationWidget.h")
+#if __has_include("vtkCameraOrientationWidget.h") && !defined(GL_ES_VERSION_3_0)
 #define HAS_COW 1
 #endif
 #ifdef HAS_COW
