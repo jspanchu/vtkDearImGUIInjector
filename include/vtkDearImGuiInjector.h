@@ -1,24 +1,25 @@
 #pragma once
 
+#include <vtkCommand.h>
 #include <vtkNew.h>
 #include <vtkObject.h>
 #include <vtkWeakPointer.h>
 #include <vtkdearimguiinjector_export.h>
 
 #if __has_include(<vtkXRenderWindowInteractor.h>)
-  #define USES_X11 1
+#define USES_X11 1
 #endif
 #if __has_include(<vtkWin32RenderWindowInteractor.h>)
-  #define USES_WIN32 1
-  #warning "Unsupported platform! Keyboard mapping not setup"
+#define USES_WIN32 1
+// #warning "Unsupported platform! Keyboard mapping not setup"
 #endif
 #if __has_include(<vtkSDL2RenderWindowInteractor.h>)
-  #define USES_SDL2 1
-  #undef USES_X11
-  #undef USES_WIN32
+#define USES_SDL2 1
+#undef USES_X11
+#undef USES_WIN32
 #endif
-#if !defined (USES_X11) && !defined (USES_WIN32) && !defined (USES_SDL2)
-  #warning "Unsupported platform! Keyboard mapping not setup"
+#if !defined(USES_X11) && !defined(USES_WIN32) && !defined(USES_SDL2)
+#warning "Unsupported platform! Keyboard mapping not setup"
 #endif
 
 class vtkRenderWindow;
@@ -39,7 +40,9 @@ public:
   void UninstallEventCallback();
 
   // Observe this event and draw application specific ImGui widgets
-  static const unsigned long ImGuiDrawEvent, ImGuiSetupEvent, ImGuiTearDownEvent;
+  static const unsigned long ImGuiDrawEvent = vtkCommand::UserEvent + 1;
+  static const unsigned long ImGuiSetupEvent = vtkCommand::UserEvent + 2;
+  static const unsigned long ImGuiTearDownEvent = vtkCommand::UserEvent + 3;
   vtkWeakPointer<vtkRenderWindowInteractor> Interactor;
 
 protected:

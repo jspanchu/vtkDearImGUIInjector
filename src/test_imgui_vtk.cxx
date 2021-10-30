@@ -27,10 +27,10 @@
 
 std::string ReportVTKOpenGL(vtkRenderWindow*);
 // Listens to vtkDearImGuiInjector::ImGuiSetupEvent
-void SetupUI(vtkDearImGuiInjector*);
+static void SetupUI(vtkDearImGuiInjector*);
 // Listens to vtkDearImGuiInjector::ImGuiDrawEvent
-void DrawUI(vtkDearImGuiInjector*);
-void HelpMarker(const char* desc);
+static void DrawUI(vtkDearImGuiInjector*);
+static void HelpMarker(const char* desc);
 
 //------------------------------------------------------------------------------
 // Main
@@ -226,7 +226,7 @@ static const char Karla_Regular_compressed_data_base85[15900+1] =
     "Ud'B#g+BP8'@AaFum].#UgUx$0BAqDBG$T.-/5##$;ClLS?TG2&),##Rww%######$####WDK[k^=91#";
 #endif
 
-void SetupUI(vtkDearImGuiInjector* overlay)
+static void SetupUI(vtkDearImGuiInjector* overlay)
 {
   vtkNew<vtkCallbackCommand> uiSetup;
   auto uiSetupFunction = [](vtkObject* caller, long unsigned int vtkNotUsed(eventId), void* clientData, void* callData) {
@@ -261,7 +261,7 @@ void SetupUI(vtkDearImGuiInjector* overlay)
   overlay->AddObserver(vtkDearImGuiInjector::ImGuiSetupEvent, uiSetup);
 }
 
-void DrawUI(vtkDearImGuiInjector* overlay)
+static void DrawUI(vtkDearImGuiInjector* overlay)
 {
   vtkNew<vtkCallbackCommand> uiDraw;
   auto uiDrawFunction = [](vtkObject* caller, long unsigned int vtkNotUsed(eventId), void* clientData, void* vtkNotUsed(callData)) {
@@ -329,7 +329,7 @@ void DrawUI(vtkDearImGuiInjector* overlay)
   overlay->AddObserver(vtkDearImGuiInjector::ImGuiDrawEvent, uiDraw);
 }
 
-void HelpMarker(const char* desc)
+static void HelpMarker(const char* desc)
 {
     ImGui::TextDisabled("(?)");
     if (ImGui::IsItemHovered())

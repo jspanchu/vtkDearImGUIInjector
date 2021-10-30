@@ -49,11 +49,6 @@ const std::unordered_map<int, int> imguiToVtkCursors(
     { ImGuiMouseCursor_NotAllowed, VTK_CURSOR_DEFAULT } });
 }
 
-const unsigned long vtkDearImGuiInjector::ImGuiSetupEvent = vtkCommand::UserEvent + 2;
-const unsigned long vtkDearImGuiInjector::ImGuiDrawEvent = vtkCommand::UserEvent + 1;
-const unsigned long vtkDearImGuiInjector::ImGuiTearDownEvent = vtkCommand::UserEvent + 3;
-
-
 vtkDearImGuiInjector::vtkDearImGuiInjector()
 {
   // Start DearImGui
@@ -456,7 +451,6 @@ void vtkDearImGuiInjector::PumpEv(vtkObject* caller, unsigned long eid, void* ca
 {
   vtkDebugMacro(<< "PumpEv");
   auto interactor = vtkRenderWindowInteractor::SafeDownCast(caller);
-  auto renWin = interactor->GetRenderWindow();
   interactor->Enable();
   interactor->Initialize();
 
@@ -637,7 +631,6 @@ void vtkDearImGuiInjector::DispatchEv(
     case vtkCommand::CharEvent:
     {
       const char* keySym = iStyle->GetInteractor()->GetKeySym();
-      const unsigned int keyCode = iStyle->GetInteractor()->GetKeyCode();
       io.AddInputCharactersUTF8(keySym);
 
       if (!io.WantCaptureKeyboard || (io.WantCaptureKeyboard && self->GrabKeyboard))
@@ -673,6 +666,8 @@ void vtkDearImGuiInjector::DispatchEv(
       io.KeyCtrl = iStyle->GetInteractor()->GetControlKey();
       io.KeyShift = iStyle->GetInteractor()->GetShiftKey();
       io.KeySuper = (SDL_GetModState() & KMOD_GUI) ? true : false;
+#elif defined(USES_WIN32)
+      unsigned int key = 0;
 #endif
       if (key >= 0 && key < IM_ARRAYSIZE(io.KeysDown))
       {
