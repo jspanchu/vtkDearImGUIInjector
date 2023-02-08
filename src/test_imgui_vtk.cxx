@@ -1,7 +1,7 @@
 #include <sstream>
 #include <string>
 #include <vtk_glew.h>
-#ifndef VTK_MODULE_vtkglew_GLES3
+#if !VTK_MODULE_vtkglew_GLES3
 #define HAS_COW 1
 #endif
 
@@ -15,16 +15,17 @@
 #endif
 #include "vtkCameraOrientationWidget.h"
 #include "vtkConeSource.h"
+#include "vtkCylinderSource.h"
+#include "vtkDiskSource.h"
+#include "vtkSphereSource.h"
+#include "vtkPartitionedDataSetCollection.h"
 #include "vtkInteractorStyle.h"
 #include "vtkInteractorStyleSwitch.h"
 #include "vtkNew.h"
 #include "vtkPolyData.h"
-#include "vtkPolyDataMapper.h"
+#include "vtkCompositePolyDataMapper2.h"
+#include "vtkProperty.h"
 #include "vtkRenderer.h"
-#if defined(USES_SDL2)
-#include "vtkSDL2OpenGLRenderWindow.h"
-#include "vtkSDL2RenderWindowInteractor.h"
-#endif
 #include "vtkRenderWindow.h"
 #include "vtkRenderWindowInteractor.h"
 
@@ -34,7 +35,6 @@
 #include "imgui.h"                 // to draw custom UI
 #include "vtkOpenGLRenderWindow.h" // needed to check if opengl is supported.
 
-std::string ReportVTKOpenGL(vtkRenderWindow*);
 // Listens to vtkDearImGuiInjector::ImGuiSetupEvent
 static void SetupUI(vtkDearImGuiInjector*);
 // Listens to vtkDearImGuiInjector::ImGuiDrawEvent
@@ -49,26 +49,58 @@ int main(int argc, char* argv[])
 {
   // Create a renderer, render window, and interactor
   vtkNew<vtkRenderer> renderer;
-#ifdef USES_SDL2
-  vtkNew<vtkSDL2OpenGLRenderWindow> renderWindow;
-  vtkNew<vtkSDL2RenderWindowInteractor> iren;
-#else
   vtkNew<vtkRenderWindow> renderWindow;
   vtkNew<vtkRenderWindowInteractor> iren;
-#endif
   renderWindow->SetMultiSamples(8);
   renderWindow->AddRenderer(renderer);
   iren->SetRenderWindow(renderWindow);
 
   // Create pipeline
-  vtkNew<vtkConeSource> coneSource;
-  coneSource->Update();
+  vtkNew<vtkPartitionedDataSetCollection> pdset;
+  double x = 0, y = 0, z = 0.;
+  int dimensions[2] = { 100, 100 };
+  double spacings[3] = { 2.0, 2.0, 2.0 };
+  int partitionIdx = 0;
+  for (int i = 0; i < dimensions[0]; ++i)
+  {
+    y = 0;
+    for (int j = 0; j < dimensions[1]; ++j)
+    {
+      z = 0;
+      vtkNew<vtkConeSource> cone;
+      cone->SetCenter(x, y, z);
+      z += spacings[2];
+      cone->Update();
+      pdset->SetPartition(partitionIdx++, 0, cone->GetOutput());
+      vtkNew<vtkSphereSource> sphere;
+      sphere->SetCenter(x, y, z);
+      z += spacings[2];
+      sphere->Update();
+      pdset->SetPartition(partitionIdx++, 1, sphere->GetOutput());
+      vtkNew<vtkCylinderSource> cylinder;
+      cylinder->SetCenter(x, y, z);
+      z += spacings[2];
+      cylinder->Update();
+      pdset->SetPartition(partitionIdx++, 2, cylinder->GetOutput());
+      vtkNew<vtkDiskSource> disk;
+      disk->SetCenter(x, y, z);
+      z += spacings[2];
+      disk->Update();
+      pdset->SetPartition(partitionIdx++, 3, disk->GetOutput());
+      y += spacings[1];
+    }
+    x += spacings[0];
+  }
 
-  vtkNew<vtkPolyDataMapper> mapper;
-  mapper->SetInputConnection(coneSource->GetOutputPort());
+  vtkNew<vtkCompositePolyDataMapper2> mapper;
+  mapper->ScalarVisibilityOn();
+  mapper->SetScalarModeToUseCellData();
+  mapper->SetInputDataObject(pdset);
 
   vtkNew<vtkActor> actor;
   actor->SetMapper(mapper);
+  actor->GetProperty()->EdgeVisibilityOn();
+  actor->GetProperty()->SetEdgeColor(0, 0, 0.5);
 
   // Add the actors to the scene
   renderer->AddActor(actor);
@@ -98,6 +130,8 @@ int main(int argc, char* argv[])
 
   // Start event loop
   renderWindow->SetSize(1920, 1000);
+  vtkInteractorStyleSwitch::SafeDownCast(iren->GetInteractorStyle())->SetCurrentStyleToTrackballCamera();
+  iren->EnableRenderOff();
   iren->Start();
 
   return 0;
@@ -106,22 +140,6 @@ int main(int argc, char* argv[])
 //------------------------------------------------------------------------------
 // Custom extra bloat to look good and show some VTK information
 //------------------------------------------------------------------------------
-
-std::string ReportVTKOpenGL(vtkRenderWindow* rw)
-{
-  std::stringstream toString;
-  if (!rw->SupportsOpenGL())
-  {
-    toString << " failed to find a working OpenGL\n\n";
-    toString << vtkOpenGLRenderWindow::SafeDownCast(rw)->GetOpenGLSupportMessage();
-  }
-  else
-  {
-    toString << rw->ReportCapabilities();
-  }
-  return toString.str();
-}
-
 // File: 'Karla-Regular.ttf' (16848 bytes)
 // Exported using binary_to_compressed_c.cpp
 #ifndef ADOBE_IMGUI_SPECTRUM
@@ -435,13 +453,11 @@ static void DrawUI(vtkDearImGuiInjector* overlay)
       auto rw = overlay_->Interactor->GetRenderWindow();
       ImGui::Text("MTime: %ld", rw->GetMTime());
       ImGui::Text("Name: %s", rw->GetClassName());
-#ifndef USES_SDL2
       if (ImGui::TreeNode("Capabilities"))
       {
-        ImGui::TextWrapped("OpenGL: %s", ReportVTKOpenGL(rw).c_str());
+        ImGui::TextWrapped("OpenGL: %s", rw->ReportCapabilities());
         ImGui::TreePop();
       }
-#endif
     }
     if (ImGui::CollapsingHeader("vtkRenderWindowInteractor", ImGuiTreeNodeFlags_DefaultOpen))
     {
