@@ -29,8 +29,10 @@ jobs:
       image: jspanchu/vtk-wasm-target:latest
       options: -v ${{ github.workspace }}:/project/src
     steps:
-    - name: Checkout
+    - name: Checkout repository and submodules
       uses: actions/checkout@v3
+      with:
+        submodules: recursive
     - name: Configure
       run: |
         emcmake cmake -GNinja -S /project/src -B /project/build -DCMAKE_BUILD_TYPE=Release -DVTK_DIR=$VTK_DIR
