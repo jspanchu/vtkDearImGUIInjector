@@ -5,6 +5,8 @@ on:
     branches: [ main ]
   pull_request:
     branches: [ main ]
+  # Allows manual triggers from actions tab
+  workflow_dispatch:
 
 jobs:
   build:
