@@ -1,18 +1,12 @@
 #include <sstream>
 #include <string>
-#include <vtk_glew.h>
-#if !VTK_MODULE_vtkglew_GLES3
-#define HAS_COW 1
-#endif
 
 #include "vtkDearImGuiInjector.h"
 
 #include "vtkActor.h"
 #include "vtkCallbackCommand.h"
-#ifdef HAS_COW
 #include "vtkCameraOrientationWidget.h"
 #include "vtkCameraOrientationRepresentation.h"
-#endif
 #include "vtkCameraOrientationWidget.h"
 #include "vtkConeSource.h"
 #include "vtkInteractorStyle.h"
@@ -78,13 +72,11 @@ int main(int argc, char* argv[])
   DrawUI(dearImGuiOverlay);
   /// Change to your code ends here. ///
 
-#ifdef HAS_COW
   vtkNew<vtkCameraOrientationWidget> camManipulator;
   camManipulator->SetParentRenderer(renderer);
   camManipulator->On();
   auto rep = vtkCameraOrientationRepresentation::SafeDownCast(camManipulator->GetRepresentation());
   rep->AnchorToLowerRight();
-#endif
 
   // Start event loop
   renderWindow->SetSize(1920, 1000);
