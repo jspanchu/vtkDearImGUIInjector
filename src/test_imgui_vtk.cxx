@@ -1,7 +1,7 @@
 #include <sstream>
 #include <string>
 #include <vtk_glew.h>
-#ifndef VTK_MODULE_vtkglew_GLES3
+#if !VTK_MODULE_vtkglew_GLES3
 #define HAS_COW 1
 #endif
 
@@ -21,10 +21,6 @@
 #include "vtkPolyData.h"
 #include "vtkPolyDataMapper.h"
 #include "vtkRenderer.h"
-#if defined(USES_SDL2)
-#include "vtkSDL2OpenGLRenderWindow.h"
-#include "vtkSDL2RenderWindowInteractor.h"
-#endif
 #include "vtkRenderWindow.h"
 #include "vtkRenderWindowInteractor.h"
 
@@ -34,7 +30,6 @@
 #include "imgui.h"                 // to draw custom UI
 #include "vtkOpenGLRenderWindow.h" // needed to check if opengl is supported.
 
-std::string ReportVTKOpenGL(vtkRenderWindow*);
 // Listens to vtkDearImGuiInjector::ImGuiSetupEvent
 static void SetupUI(vtkDearImGuiInjector*);
 // Listens to vtkDearImGuiInjector::ImGuiDrawEvent
@@ -49,13 +44,8 @@ int main(int argc, char* argv[])
 {
   // Create a renderer, render window, and interactor
   vtkNew<vtkRenderer> renderer;
-#ifdef USES_SDL2
-  vtkNew<vtkSDL2OpenGLRenderWindow> renderWindow;
-  vtkNew<vtkSDL2RenderWindowInteractor> iren;
-#else
   vtkNew<vtkRenderWindow> renderWindow;
   vtkNew<vtkRenderWindowInteractor> iren;
-#endif
   renderWindow->SetMultiSamples(8);
   renderWindow->AddRenderer(renderer);
   iren->SetRenderWindow(renderWindow);
@@ -98,6 +88,8 @@ int main(int argc, char* argv[])
 
   // Start event loop
   renderWindow->SetSize(1920, 1000);
+  vtkInteractorStyleSwitch::SafeDownCast(iren->GetInteractorStyle())->SetCurrentStyleToTrackballCamera();
+  iren->EnableRenderOff();
   iren->Start();
 
   return 0;
@@ -106,22 +98,6 @@ int main(int argc, char* argv[])
 //------------------------------------------------------------------------------
 // Custom extra bloat to look good and show some VTK information
 //------------------------------------------------------------------------------
-
-std::string ReportVTKOpenGL(vtkRenderWindow* rw)
-{
-  std::stringstream toString;
-  if (!rw->SupportsOpenGL())
-  {
-    toString << " failed to find a working OpenGL\n\n";
-    toString << vtkOpenGLRenderWindow::SafeDownCast(rw)->GetOpenGLSupportMessage();
-  }
-  else
-  {
-    toString << rw->ReportCapabilities();
-  }
-  return toString.str();
-}
-
 // File: 'Karla-Regular.ttf' (16848 bytes)
 // Exported using binary_to_compressed_c.cpp
 #ifndef ADOBE_IMGUI_SPECTRUM
@@ -435,13 +411,11 @@ static void DrawUI(vtkDearImGuiInjector* overlay)
       auto rw = overlay_->Interactor->GetRenderWindow();
       ImGui::Text("MTime: %ld", rw->GetMTime());
       ImGui::Text("Name: %s", rw->GetClassName());
-#ifndef USES_SDL2
       if (ImGui::TreeNode("Capabilities"))
       {
-        ImGui::TextWrapped("OpenGL: %s", ReportVTKOpenGL(rw).c_str());
+        ImGui::TextWrapped("OpenGL: %s", rw->ReportCapabilities());
         ImGui::TreePop();
       }
-#endif
     }
     if (ImGui::CollapsingHeader("vtkRenderWindowInteractor", ImGuiTreeNodeFlags_DefaultOpen))
     {

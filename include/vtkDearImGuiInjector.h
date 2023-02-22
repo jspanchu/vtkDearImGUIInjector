@@ -9,11 +9,12 @@
 #if __has_include(<vtkXRenderWindowInteractor.h>)
 #define USES_X11 1
 #endif
-#if __has_include(<vtkWin32RenderWindowInteractor.h>)
+#if __has_include(<vtkWin32RenderWindowInteractor.h>) && WIN32
 #define USES_WIN32 1
+#undef USES_X11
 // #warning "Unsupported platform! Keyboard mapping not setup"
 #endif
-#if __has_include(<vtkSDL2RenderWindowInteractor.h>)
+#if __has_include(<vtkSDL2RenderWindowInteractor.h>) && EMSCRIPTEN
 #define USES_SDL2 1
 #undef USES_X11
 #undef USES_WIN32
