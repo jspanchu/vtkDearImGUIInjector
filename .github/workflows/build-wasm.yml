@@ -8,55 +8,48 @@ on:
   # Allows manual triggers from actions tab
   workflow_dispatch:
 
+# Sets permissions of the GITHUB_TOKEN to allow deployment to GitHub Pages
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# Allow one concurrent deployment
+concurrency:
+  group: "pages"
+  cancel-in-progress: true
+
 jobs:
-  build:
-    name: Compile C++ -> JS + WASM
+  deploy:
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
     runs-on: ubuntu-latest
     container: 
       image: jspanchu/vtk-wasm-target:latest
       options: -v ${{ github.workspace }}:/project/src
     steps:
-    - uses: actions/checkout@v2
-      with:
-        submodules: 'true'
-    - name: Pull & update submodules recursively
-      run: |
-        git submodule update --init --recursive
-        git submodule update --recursive --remote
+    - name: Checkout
+      uses: actions/checkout@v3
     - name: Configure
       run: |
-        mkdir /project/build
-        emcmake cmake -GNinja -S /project/src -B /project/build -DCMAKE_BUILD_TYPE=Release -DBUILD_SHARED_LIBS=OFF
+        emcmake cmake -GNinja -S /project/src -B /project/build -DCMAKE_BUILD_TYPE=Release -DVTK_DIR=$VTK_DIR
     - name: Build
       run:
         cmake --build /project/build
-    - name: Create tarballs.
+    - name: Prepare artifacts
       run: |
         cd /project/build
-        tar -cvf web_content.tar imgui_vtk_app.js imgui_vtk_app.wasm index.html
-    - name: Upload
-      uses: actions/upload-artifact@v2
+        mkdir /web_content
+        mv imgui_vtk_app.js /web_content/
+        mv imgui_vtk_app.wasm /web_content/
+        mv index.html /web_content/
+    - name: Setup Pages
+      uses: actions/configure-pages@v3
+    - name: Upload artifact
+      uses: actions/upload-pages-artifact@v1
       with:
-        name: web_content
-        path: /project/build/web_content.tar
-  deploy:
-    name: Deploy JS + WASM
-    needs: build
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v2
-        with:
-          ref: gh-pages
-      - name: Download
-        uses: actions/download-artifact@v2
-        with:
-          name: web_content
-      - name: Commit
-        shell: bash
-        run: |
-            tar -xvf web_content.tar
-            git config user.name Jaswant Panchumarti
-            git config user.email jspanchu@gmail.com
-            git add imgui_vtk_app.js imgui_vtk_app.wasm index.html
-            git diff-index --quiet HEAD || git commit -m "Deploy WebAssembly binaries"
-            git push origin HEAD:gh-pages
+        path: '/web_content/'
+    - name: Deploy to GitHub Pages
+      id: deployment
+      uses: actions/deploy-pages@v1
