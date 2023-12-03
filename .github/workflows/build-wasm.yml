@@ -25,33 +25,26 @@ jobs:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
     runs-on: ubuntu-latest
-    container: 
-      image: jspanchu/vtk-wasm-target:latest
-      options: -v ${{ github.workspace }}:/project/src
     steps:
-    - name: Checkout repository and submodules
+    - name: Checkout
       uses: actions/checkout@v3
       with:
         submodules: recursive
-    - name: Configure
-      run: |
-        emcmake cmake -GNinja -S /project/src -B /project/build -DCMAKE_BUILD_TYPE=Release -DVTK_DIR=$VTK_DIR
     - name: Build
-      run:
-        cmake --build /project/build
+      run: |
+        npm install
+        npm run build-wasm
     - name: Prepare artifacts
       run: |
-        cd /project/build
-        mkdir /web_content
-        mv imgui_vtk_app.js /web_content/
-        mv imgui_vtk_app.wasm /web_content/
-        mv index.html /web_content/
+        mkdir web_content
+        mv build-emscripten/sample/imgui_vtk_app.js web_content/
+        mv build-emscripten/sample/index.html web_content/
     - name: Setup Pages
       uses: actions/configure-pages@v3
     - name: Upload artifact
       uses: actions/upload-pages-artifact@v1
       with:
-        path: '/web_content/'
+        path: './web_content/'
     - name: Deploy to GitHub Pages
       id: deployment
       uses: actions/deploy-pages@v1

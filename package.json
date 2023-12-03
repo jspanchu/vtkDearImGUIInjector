@@ -1,0 +1,20 @@
+{
+    "name": "vtk-dearimgui-injector",
+    "version": "0.0.0-semantically-released",
+    "scripts": {
+        "build-wasm": "npm run build-wasm:release",
+        "build-wasm:release": "npx itk-wasm -i kitware/vtk-wasm -b build-emscripten -s . build -- Release -DDEBUGINFO=PROFILE",
+        "build-wasm:debug": "npx itk-wasm -i kitware/vtk-wasm -b build-emscripten -s . build -- Debug -DDEBUGINFO=DEBUG_NATIVE -DOPTIMIZE=NO_OPTIMIZATION"
+    },
+    "keywords": [
+        "vtk",
+        "wasm",
+        "emscripten",
+        "opengl"
+    ],
+    "author": "Jaswant Panchumarti",
+    "license": "MIT",
+    "devDependencies": {
+        "itk-wasm": "^1.0.0-b.83"
+    }
+}

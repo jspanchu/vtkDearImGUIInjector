@@ -34,7 +34,11 @@
 # Build dirs
 out/
 .vs/
-*.json
+compile_commands.json
 .cache
 build
 build*
+
+# node
+node_modules/
+package-lock.json
